@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules
+dist
+
+# AI tooling and local agent files
+.claude
+.impeccable
+
+# Secrets and machine-local settings
+.env
+.env.*
+*.local
+
+# Logs, editor and OS files
+*.log
+.vscode
+.idea
+.DS_Store
+Thumbs.db
