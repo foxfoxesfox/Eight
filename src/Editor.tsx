@@ -147,7 +147,7 @@ function Workspace({ project }: { project: Project }) {
   const here = formations[view.index]
   const gel = gelOf(here, view.index)
   let wash = gel
-  if (view.moving) {
+  if (view.moving && view.index > 0) {
     const t = (time - (starts[view.index] - here.transition)) / here.transition
     wash = `color-mix(in srgb, ${gel} ${Math.round(t * 100)}%, ${gelOf(formations[view.index - 1], view.index - 1)})`
   }
@@ -268,8 +268,8 @@ function Workspace({ project }: { project: Project }) {
             <Field label="Name" value={f.name} maxLength={60} onCommit={v => edit(p => { p.formations[current].name = v })} />
             <Swatches label="Lighting colour" value={gelOf(f, current)} options={GELS.map(g => g.hex)} names={GELS.map(g => g.name)} onPick={c => edit(p => { p.formations[current].color = c })} />
             <div className="pair">
-              <Field label="Hold" type="number" min={0.1} max={600} step={0.1} suffix="s" value={f.hold} onCommit={v => edit(p => { p.formations[current].hold = round(Number(v)) })} />
-              {current > 0 && <Field label="Travel in" type="number" min={0} max={600} step={0.1} suffix="s" value={f.transition} onCommit={v => edit(p => { p.formations[current].transition = round(Number(v)) })} />}
+              <Field label="In formation" type="number" min={0.1} max={600} step={0.1} suffix="s" value={f.hold} onCommit={v => edit(p => { p.formations[current].hold = round(Number(v)) })} />
+              {<Field label="Moving in" type="number" min={0} max={600} step={0.1} suffix="s" value={f.transition} onCommit={v => edit(p => { p.formations[current].transition = round(Number(v)) })} />}
             </div>
             <label className="field"><span>Note</span>
               <textarea key={f.id} rows={3} defaultValue={f.note ?? ''} placeholder="What happens here?" onBlur={e => { const v = e.target.value.trim(); if (v !== (f.note ?? '')) edit(p => { p.formations[current].note = v || undefined }) }} />

@@ -22,6 +22,10 @@ describe('model', () => {
     expect(positionsAt(p.formations, 3).positions[id]).toEqual({ x: 0, y: 0 })
     expect(positionsAt(p.formations, 10)).toMatchObject({ index: 1, moving: true, positions: { [id]: { x: 2, y: 1 } } })
     expect(positionsAt(p.formations, 99)).toMatchObject({ index: 1, moving: false })
+    // The first formation can have a moving-in part too; it pushes everything later.
+    p.formations[0].transition = 2
+    expect(startTimes(p.formations)).toEqual([2, 14])
+    expect(positionsAt(p.formations, 1)).toMatchObject({ index: 0, moving: true, positions: { [id]: { x: 0, y: 0 } } })
   })
 
   it('round-trips a project through JSON and rejects junk', () => {

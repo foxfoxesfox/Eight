@@ -13,7 +13,7 @@ const demo: Project = (() => {
     ['Two rows', [[-3, 2.5], [-1, 2.5], [1, 2.5], [3, 2.5], [-3, 5.5], [-1, 5.5], [1, 5.5], [3, 5.5]]],
     ['Circle', [[-2.5, 4], [-1.8, 5.8], [0, 6.5], [1.8, 5.8], [2.5, 4], [1.8, 2.2], [0, 1.5], [-1.8, 2.2]]],
   ]
-  p.formations = shapes.map(([name, pts], i) => ({ id: String(i), name, color: GELS[i].hex, hold: 2, transition: 2, positions: shape(pts) }))
+  p.formations = shapes.map(([name, pts], i) => ({ id: String(i), name, color: GELS[i].hex, hold: 2, transition: i ? 2 : 0, positions: shape(pts) }))
   return p
 })()
 

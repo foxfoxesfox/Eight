@@ -22,7 +22,7 @@ export interface Formation {
   color?: string
   /** Seconds held in this formation. */
   hold: number
-  /** Seconds taken to travel here from the previous formation (ignored on the first). */
+  /** Seconds taken to travel here from the previous formation (on the first, a lead-in where everyone waits in place). */
   transition: number
   note?: string
   positions: Record<string, Position>
@@ -139,8 +139,8 @@ export function newProject(name: string, dancerCount: number, stage: Partial<Sta
 /** Start time, in seconds, of each formation's hold. */
 export function startTimes(formations: Formation[]): number[] {
   let t = 0
-  return formations.map((f, i) => {
-    if (i > 0) t += f.transition
+  return formations.map(f => {
+    t += f.transition
     const start = t
     t += f.hold
     return start
@@ -148,7 +148,7 @@ export function startTimes(formations: Formation[]): number[] {
 }
 
 export function totalTime(formations: Formation[]): number {
-  return formations.reduce((t, f, i) => t + f.hold + (i > 0 ? f.transition : 0), 0)
+  return formations.reduce((t, f) => t + f.hold + f.transition, 0)
 }
 
 /** Where every dancer is at time `count` (seconds): held in a formation, or part-way along a straight line between two. */
@@ -156,11 +156,12 @@ export function positionsAt(formations: Formation[], count: number): { index: nu
   const starts = startTimes(formations)
   for (let i = formations.length - 1; i >= 0; i--) {
     const f = formations[i]
-    if (count >= starts[i] || i === 0) return { index: i, moving: false, positions: f.positions }
+    if (count >= starts[i]) return { index: i, moving: false, positions: f.positions }
     const travelStart = starts[i] - f.transition
     if (count >= travelStart) {
       const t = f.transition ? (count - travelStart) / f.transition : 1
-      const prev = formations[i - 1].positions
+      // Nobody has anywhere to come from before the first formation, so they wait in place.
+      const prev = formations[i - 1]?.positions ?? f.positions
       const positions: Record<string, Position> = {}
       for (const id in f.positions) {
         const a = prev[id] ?? f.positions[id]

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
-import { gelName, gelOf, inkOn, round, startTimes, totalTime, type Project } from './model'
+import { gelName, gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
 import { edit } from './store'
 import { Icon } from './ui'
 
@@ -37,9 +37,11 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
   const [trim, render] = useState<Trim | null>(null)
   const setTrim = (t: Trim | null) => { live.current = t; render(t) }
 
+  // The divider inside a bar moves the split between moving in and holding, so the bar keeps its length.
+  const resize = (f: Formation, edge: Edge, v: number) => (edge === 'hold' ? { hold: v } : { transition: v, hold: round(f.transition + f.hold - v) })
   const beat = 60 / project.bpm
   const beatAt = project.beatOffset ?? 0
-  const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, [trim.edge]: trim.value } : f)) : project.formations
+  const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, ...resize(f, trim.edge, trim.value) } : f)) : project.formations
   const starts = startTimes(formations)
   const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
   const width = Math.max(view.width, (end + 3) * pps)
@@ -87,11 +89,12 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
 
   const snapped = (t: number) => (snap ? beatAt + Math.round((t - beatAt) / beat) * beat : t)
 
-  // ---- Trimming: the right edge sets how long a formation holds, the left edge how long the move into it takes. ----
+  // ---- Trimming: the right edge sets how long a formation holds, the divider how much of the bar is spent moving in. ----
   const edgeTime = (i: number, edge: Edge) => (edge === 'hold' ? starts[i] + formations[i].hold : starts[i])
-  const limit = (edge: Edge, v: number) => round(Math.max(edge === 'hold' ? MIN_HOLD : 0, Math.min(600, v)))
+  const most = (i: number, edge: Edge) => (edge === 'hold' ? 600 : round(project.formations[i].transition + project.formations[i].hold - MIN_HOLD))
+  const limit = (i: number, edge: Edge, v: number) => round(Math.max(edge === 'hold' ? MIN_HOLD : 0, Math.min(most(i, edge), v)))
   const commit = (i: number, edge: Edge, value: number) => {
-    if (value !== project.formations[i][edge]) edit(p => { p.formations[i][edge] = value })
+    if (value !== project.formations[i][edge]) edit(p => { Object.assign(p.formations[i], resize(p.formations[i], edge, value)) })
   }
   const trimDown = (e: PointerEvent, i: number, edge: Edge) => {
     if (e.button !== 0) return
@@ -105,7 +108,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
     if (!t) return
     const base = edgeTime(t.i, t.edge) - t.value // where this edge would sit at zero length
     const wanted = base + t.from + (e.clientX - t.x0) / pps
-    setTrim({ ...t, value: limit(t.edge, (e.altKey ? wanted : snapped(wanted)) - base) })
+    setTrim({ ...t, value: limit(t.i, t.edge, (e.altKey ? wanted : snapped(wanted)) - base) })
   }
   const trimUp = () => {
     const t = live.current
@@ -118,16 +121,17 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
     if (!dir) return
     e.preventDefault()
     e.stopPropagation()
-    commit(i, edge, limit(edge, project.formations[i][edge] + dir * (e.shiftKey ? 1 : 0.1)))
+    commit(i, edge, limit(i, edge, project.formations[i][edge] + dir * (e.shiftKey ? 1 : 0.1)))
   }
   const handle = (i: number, edge: Edge) => (
     <span
       className={`trim trim-${edge}`}
+      style={edge === 'transition' ? { left: Math.max(0, formations[i].transition * pps - 6) } : undefined}
       role="slider"
       tabIndex={0}
-      aria-label={edge === 'hold' ? `How long ${formations[i].name} holds` : `How long the move into ${formations[i].name} takes`}
+      aria-label={edge === 'hold' ? `How long ${formations[i].name} holds` : `How much of ${formations[i].name} is spent moving in`}
       aria-valuemin={edge === 'hold' ? MIN_HOLD : 0}
-      aria-valuemax={600}
+      aria-valuemax={most(i, edge)}
       aria-valuenow={formations[i][edge]}
       aria-valuetext={secs(formations[i][edge])}
       title="Drag to change the length. Arrow keys work too."
@@ -179,21 +183,21 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
           <ol className="clips">
             {formations.map((f, i) => {
               const hex = gelOf(f, i)
-              const prev = i ? gelOf(formations[i - 1], i - 1) : hex
+              const move = f.transition
               return (
                 <li key={f.id}>
-                  {i > 0 && f.transition > 0 && (
-                    <span className="travel" style={{ left: (starts[i] - f.transition) * pps, width: f.transition * pps, '--a': prev, '--b': hex } as CSSProperties}>
-                      {f.transition * pps > 54 && secs(f.transition)}
-                    </span>
-                  )}
-                  <div className={`clip${i === index ? ' is-current' : ''}`} style={{ left: starts[i] * pps, width: f.hold * pps, background: hex, color: inkOn(hex) }}>
+                  <div className={`clip${i === index ? ' is-current' : ''}`} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
                     <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])}>
                       <small>{pad(i + 1)} · {gelName(hex)}</small>
                       <b>{f.name}</b>
-                      <i>{secs(f.hold)}</i>
                     </button>
-                    {i > 0 && handle(i, 'transition')}
+                    {move > 0 && (
+                      <button className="clip-move" style={{ width: move * pps }} onClick={() => onSeek(starts[i] - move)} aria-label={`Moving into ${f.name}, ${secs(move)}`}>
+                        {secs(move)} moving in
+                      </button>
+                    )}
+                    <span className="clip-hold" style={{ left: move * pps }}>{secs(f.hold)} in formation</span>
+                    {handle(i, 'transition')}
                     {handle(i, 'hold')}
                   </div>
                 </li>
