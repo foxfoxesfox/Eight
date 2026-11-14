@@ -45,6 +45,8 @@ export interface Project {
   formations: Formation[]
   /** Tempo of the optional beat grid. */
   bpm: number
+  /** Seconds into the timeline where beat one of the grid falls. */
+  beatOffset?: number
   /** The song itself is stored beside the project, never inside it. */
   audio?: { name: string; duration: number }
   archived?: boolean
@@ -198,5 +200,5 @@ export function parseProject(text: string): Project {
   const now = Date.now()
   // A fresh id so an import never overwrites the project it was exported from.
   // The song does not travel inside the file, so an import starts without one.
-  return migrate({ ...p, audio: undefined, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, stage: { unit: 'm', gridSize: 1, ...p.stage }, createdAt: now, updatedAt: now })
+  return migrate({ ...p, audio: undefined, beatOffset: num(p.beatOffset) && p.beatOffset >= 0 ? p.beatOffset : undefined, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, stage: { unit: 'm', gridSize: 1, ...p.stage }, createdAt: now, updatedAt: now })
 }

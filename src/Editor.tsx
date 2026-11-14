@@ -281,6 +281,8 @@ function Workspace({ project }: { project: Project }) {
             <button className="btn btn-line btn-danger" onClick={() => { deleteFormation(current); follow() }} disabled={formations.length === 1}><Icon name="trash" />Delete formation</button>
             <h2 className="spaced">Routine</h2>
             <Field label="Tempo of the beat grid" type="number" min={30} max={240} step={1} suffix="BPM" value={bpm} onCommit={v => edit(p => { p.bpm = Number(v) })} />
+            <Field label="First beat at" type="number" min={0} max={600} step={0.01} suffix="s" value={project.beatOffset ?? 0} onCommit={v => edit(p => { p.beatOffset = round(Number(v)) })} />
+            <button className="btn btn-line" onClick={() => edit(p => { p.beatOffset = round(time) })}>Set first beat to playhead</button>
             <div className="pair">
               <Field label="Stage width" type="number" min={2} max={60} step={0.5} suffix="m" value={stage.width} onCommit={v => edit(p => { p.stage.width = Number(v) })} />
               <Field label="Stage depth" type="number" min={2} max={60} step={0.5} suffix="m" value={stage.depth} onCommit={v => edit(p => { p.stage.depth = Number(v) })} />

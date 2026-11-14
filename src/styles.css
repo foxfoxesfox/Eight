@@ -148,6 +148,7 @@ input[type='number'] { appearance: textfield; }
 .track { position: relative; height: 182px; }
 /* Beat grid: a faint line per beat, a stronger one every eight. */
 .track.has-beats {
+  background-position: var(--beat-at) 0;
   background-image: repeating-linear-gradient(90deg, #17171a3d 0 1px, transparent 1px calc(var(--beat) * 8)), repeating-linear-gradient(90deg, #17171a17 0 1px, transparent 1px var(--beat));
 }
 .ruler { position: relative; height: 26px; background: var(--paper); border-bottom: 1px solid var(--line); cursor: ew-resize; touch-action: none; user-select: none; }

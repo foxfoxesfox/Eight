@@ -38,6 +38,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
   const setTrim = (t: Trim | null) => { live.current = t; render(t) }
 
   const beat = 60 / project.bpm
+  const beatAt = project.beatOffset ?? 0
   const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, [trim.edge]: trim.value } : f)) : project.formations
   const starts = startTimes(formations)
   const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
@@ -84,7 +85,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
     }
   }, [peaks, pps, view])
 
-  const snapped = (t: number) => (snap ? Math.round(t / beat) * beat : t)
+  const snapped = (t: number) => (snap ? beatAt + Math.round((t - beatAt) / beat) * beat : t)
 
   // ---- Trimming: the right edge sets how long a formation holds, the left edge how long the move into it takes. ----
   const edgeTime = (i: number, edge: Edge) => (edge === 'hold' ? starts[i] + formations[i].hold : starts[i])
@@ -148,7 +149,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
   const zoom = (k: number) => setPps(v => Math.max(4, Math.min(400, v * k)))
   const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120].find(s => s * pps >= 64) ?? 300
   const ticks = Array.from({ length: Math.floor(width / pps / step) + 1 }, (_, k) => k * step)
-  const beatNow = Math.floor(time / beat)
+  const beatNow = Math.max(0, Math.floor((time - beatAt) / beat))
 
   return (
     <footer className="deck">
@@ -170,7 +171,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
       </div>
 
       <div className="reel" ref={scroller} onScroll={e => setView({ left: e.currentTarget.scrollLeft, width: e.currentTarget.clientWidth })}>
-        <div className={`track${snap ? ' has-beats' : ''}`} ref={track} style={{ width, '--beat': `${beat * pps}px` } as CSSProperties}>
+        <div className={`track${snap ? ' has-beats' : ''}`} ref={track} style={{ width, '--beat': `${beat * pps}px`, '--beat-at': `${beatAt * pps}px` } as CSSProperties}>
           <div className="ruler" onPointerDown={scrub} onPointerMove={scrub} title="Click or drag to move the playhead">
             {ticks.map(t => <span key={t} style={{ left: t * pps }}>{step < 1 ? clock(t) : clock(t).slice(0, -3)}</span>)}
           </div>
