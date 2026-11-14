@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
-import { gelName, gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
+import { gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
 import { edit } from './store'
 import { Icon } from './ui'
 
@@ -18,6 +18,10 @@ interface Props {
   index: number
   peaks: Float32Array | null
   audioMissing: boolean
+  speed: number
+  onSpeed: (s: number) => void
+  loop: boolean
+  onLoop: (on: boolean) => void
   onSeek: (t: number) => void
   onToggle: () => void
   onAddFormation: () => void
@@ -25,7 +29,7 @@ interface Props {
   onRemoveAudio: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, onSeek, onToggle, onAddFormation, onPickAudio, onRemoveAudio }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onPickAudio, onRemoveAudio }: Props) {
   const [pps, setPps] = useState(48) // pixels per second
   const [snap, setSnap] = useState(false)
   const [view, setView] = useState({ left: 0, width: 800 })
@@ -161,11 +165,17 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
         <button className="btn btn-play" onClick={onToggle} aria-label={playing ? 'Stop' : 'Play from the playhead'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
         <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formations[index].name} · bar {Math.floor(beatNow / 8) + 1}, count {(beatNow % 8) + 1}</span></p>
         <div className="deck-tools">
+          <label className="check">Speed
+            <select value={speed} onChange={e => onSpeed(Number(e.target.value))}>
+              <option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option>
+            </select>
+          </label>
+          <label className="check" title="Repeats the formation the playhead is in when you press Play"><input type="checkbox" checked={loop} onChange={e => onLoop(e.target.checked)} />Loop formation</label>
           <label className="check"><input type="checkbox" checked={snap} onChange={e => setSnap(e.target.checked)} />Snap to beats</label>
           <span className="zoom" role="group" aria-label="Timeline zoom">
-            <button className="btn btn-line" onClick={() => zoom(1 / 1.5)} aria-label="Zoom out">−</button>
+            <button className="btn btn-line" onClick={() => zoom(1 / 1.5)} aria-label="Zoom out"><Icon name="minus" /></button>
             <button className="btn btn-line" onClick={() => setPps(Math.max(4, Math.min(400, (view.width - 24) / (end + 1))))}>Fit</button>
-            <button className="btn btn-line" onClick={() => zoom(1.5)} aria-label="Zoom in">+</button>
+            <button className="btn btn-line" onClick={() => zoom(1.5)} aria-label="Zoom in"><Icon name="plus" /></button>
           </span>
           {project.audio
             ? <button className="btn btn-line" onClick={onRemoveAudio} title={project.audio.name}>Remove music</button>
@@ -188,8 +198,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, o
                 <li key={f.id}>
                   <div className={`clip${i === index ? ' is-current' : ''}`} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
                     <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])}>
-                      <small>{pad(i + 1)} · {gelName(hex)}</small>
-                      <b>{f.name}</b>
+                      <b>{pad(i + 1)} {f.name}</b>
                     </button>
                     {move > 0 && (
                       <button className="clip-move" style={{ width: move * pps }} onClick={() => onSeek(starts[i] - move)} aria-label={`Moving into ${f.name}, ${secs(move)}`}>

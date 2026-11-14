@@ -14,6 +14,8 @@ export interface Position {
   x: number
   y: number
   offstage?: boolean
+  /** Bends the path into this position: the control point of a quadratic curve from the previous formation. */
+  via?: { x: number; y: number }
 }
 
 export interface Formation {
@@ -151,7 +153,14 @@ export function totalTime(formations: Formation[]): number {
   return formations.reduce((t, f) => t + f.hold + f.transition, 0)
 }
 
-/** Where every dancer is at time `count` (seconds): held in a formation, or part-way along a straight line between two. */
+/** The point a fraction `t` of the way from `a` to `b`, along a straight line or the curve bent through `via`. */
+export function along(a: Position, b: Position, via: Position['via'], t: number): { x: number; y: number } {
+  if (!via) return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+  const u = 1 - t
+  return { x: u * u * a.x + 2 * u * t * via.x + t * t * b.x, y: u * u * a.y + 2 * u * t * via.y + t * t * b.y }
+}
+
+/** Where every dancer is at time `count` (seconds): held in a formation, or part-way along the path between two. */
 export function positionsAt(formations: Formation[], count: number): { index: number; moving: boolean; positions: Record<string, Position> } {
   const starts = startTimes(formations)
   for (let i = formations.length - 1; i >= 0; i--) {
@@ -166,7 +175,7 @@ export function positionsAt(formations: Formation[], count: number): { index: nu
       for (const id in f.positions) {
         const a = prev[id] ?? f.positions[id]
         const b = f.positions[id]
-        positions[id] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, offstage: t < 0.5 ? a.offstage : b.offstage }
+        positions[id] = { ...along(a, b, b.via, t), offstage: t < 0.5 ? a.offstage : b.offstage }
       }
       return { index: i, moving: true, positions }
     }
@@ -196,7 +205,7 @@ export function parseProject(text: string): Project {
     Array.isArray(p.dancers) && p.dancers.every((d: any) => d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.label === 'string') &&
     Array.isArray(p.formations) && p.formations.length > 0 &&
     p.formations.every((f: any) => f && typeof f.id === 'string' && num(f.hold) && num(f.transition) && f.positions && typeof f.positions === 'object' &&
-      Object.values(f.positions).every((q: any) => q && num(q.x) && num(q.y)))
+      Object.values(f.positions).every((q: any) => q && num(q.x) && num(q.y) && (q.via === undefined || (q.via && num(q.via.x) && num(q.via.y)))))
   if (!ok) throw new Error('This file is not an Eight project, or it was made by a newer version.')
   const now = Date.now()
   // A fresh id so an import never overwrites the project it was exported from.

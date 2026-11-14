@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react'
-import { inkOn, round, type Dancer, type Position, type Stage as StageT } from './model'
+import { along, inkOn, round, type Dancer, type Position, type Stage as StageT } from './model'
 
 const R = 0.34 // dancer mark radius, metres
 const MARGIN = 1.5 // wing space drawn around the stage, metres
@@ -35,11 +35,27 @@ interface Props {
   /** Called once when a drag ends, with final positions for every moved dancer. */
   onMove?: (moves: Record<string, Position>) => void
   label?: string
+  /** Where everyone stood in the previous formation; drawn as ghosts with a path to where they are now. */
+  ghosts?: Record<string, Position>
+  /** Where everyone goes next; drawn as faint outlines when paths are always shown. */
+  next?: Record<string, Position>
+  paths?: PathMode
+  /** Called once when a path is bent or straightened (`via` undefined). */
+  onBend?: (id: string, via: Position['via']) => void
 }
 
-type Drag = { mode: 'move' | 'marquee'; ids: string[]; from: Position; to: Position; moved: boolean }
+export type PathMode = 'always' | 'selected' | 'never'
 
-export function StageView({ stage, dancers, positions, selected = [], onSelect, onMove, label }: Props) {
+type Drag = { mode: 'move' | 'marquee' | 'bend'; ids: string[]; from: Position; to: Position; moved: boolean }
+
+/** The control point that makes the curve from `a` to `b` pass through `m` at its midpoint; none if `m` is nearly on the straight line. */
+function viaThrough(a: Position, b: Position, m: Position): Position['via'] {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+  if (Math.hypot(m.x - mid.x, m.y - mid.y) < 0.25) return undefined
+  return { x: round(2 * m.x - mid.x), y: round(2 * m.y - mid.y) }
+}
+
+export function StageView({ stage, dancers, positions, selected = [], onSelect, onMove, label, ghosts, next, paths = 'never', onBend }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   // The ref is read by handlers, so a fast down-move-up never sees a stale drag; the state copy drives rendering.
   const live = useRef<Drag | null>(null)
@@ -75,6 +91,11 @@ export function StageView({ stage, dancers, positions, selected = [], onSelect, 
     const drag = live.current
     if (!drag) return
     setDrag(null)
+    if (drag.mode === 'bend') {
+      const [id] = drag.ids
+      if (drag.moved && ghosts?.[id] && positions[id]) onBend?.(id, viaThrough(ghosts[id], positions[id], drag.to))
+      return
+    }
     if (drag.mode === 'marquee') {
       const [x0, x1] = [drag.from.x, drag.to.x].sort((a, b) => a - b)
       const [y0, y1] = [drag.from.y, drag.to.y].sort((a, b) => a - b)
@@ -115,6 +136,34 @@ export function StageView({ stage, dancers, positions, selected = [], onSelect, 
       <line className="stage-centre" x1={0} x2={0} y1={0} y2={d} />
       <rect className="stage-edge" x={-w / 2} y={0} width={w} height={d} rx={0.08} />
       <text className="stage-front" x={0} y={d + 0.85} textAnchor="middle">AUDIENCE</text>
+
+      {next && paths === 'always' && dancers.map(dn => next[dn.id] && <circle key={dn.id} className="ghost-next" cx={next[dn.id].x} cy={d - next[dn.id].y} r={R * 0.8} />)}
+      {ghosts && paths !== 'never' && dancers.map(dn => {
+        const a = ghosts[dn.id]
+        const b = positions[dn.id]
+        if (!a || !b || (paths === 'selected' && !selected.includes(dn.id)) || (a.x === b.x && a.y === b.y)) return null
+        const via = drag?.mode === 'bend' && drag.ids[0] === dn.id ? viaThrough(a, b, drag.to) : b.via
+        const mid = along(a, b, via, 0.5)
+        return (
+          <g key={dn.id} className="trail" style={{ color: dn.color }}>
+            <path d={`M${a.x} ${d - a.y} ${via ? `Q${via.x} ${d - via.y}` : 'L'} ${b.x} ${d - b.y}`} />
+            <circle className="ghost" cx={a.x} cy={d - a.y} r={R} />
+            {onBend && selected.includes(dn.id) && (
+              <circle className="bend" cx={mid.x} cy={d - mid.y} r={0.17}
+                onPointerDown={e => {
+                  if (e.button !== 0) return
+                  e.stopPropagation()
+                  svg.current!.setPointerCapture(e.pointerId)
+                  const p = at(e)
+                  setDrag({ mode: 'bend', ids: [dn.id], from: p, to: p, moved: false })
+                }}
+                onDoubleClick={() => onBend(dn.id, undefined)}>
+                <title>Drag to curve this path. Double-click to straighten it.</title>
+              </circle>
+            )}
+          </g>
+        )
+      })}
 
       {dancers.map(dn => {
         const p = positions[dn.id]

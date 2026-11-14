@@ -3,9 +3,9 @@ import { clock, MAX_AUDIO_BYTES, readAudio } from './audio'
 import { deleteAudio, loadAudio, loadProject, saveAudio, saveProject } from './db'
 import { DANCER_COLORS, GELS, gelName, gelOf, inkOn, parseProject, positionsAt, round, startTimes, totalTime, type Project, type Shape } from './model'
 import { addDancer, addFormation, deleteFormation, edit, moveDancers, moveFormation, removeDancers, useEditor } from './store'
-import { describe, MarkIcon, SNAP, StageView } from './Stage'
+import { describe, MarkIcon, SNAP, StageView, type PathMode } from './Stage'
 import { Timeline } from './Timeline'
-import { download, Field, go, Icon } from './ui'
+import { download, Field, go, Icon, savePng } from './ui'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
@@ -53,9 +53,16 @@ function Workspace({ project }: { project: Project }) {
   const importRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
   const [importError, setImportError] = useState('')
+  const [paths, setPaths] = useState<PathMode>('selected')
+  const [speed, setSpeed] = useState(1)
+  const [loop, setLoop] = useState(false)
+  /** The stretch being repeated while looping: the bar the playhead was in when play was pressed. */
+  const loopRange = useRef<[number, number]>([0, 0])
 
-  const seek = (t: number) => {
-    const c = Math.max(0, Math.min(end, t))
+  const seek =(t: number) => {
+    // Read the length from the store: right after an edit, this render's `end` is still the old one.
+    const p = useEditor.getState().project ?? project
+    const c = Math.max(0, Math.min(Math.max(totalTime(p.formations), p.audio?.duration ?? 0), t))
     timeRef.current = c
     setTime(c)
     if (song.current) song.current.currentTime = Math.min(c, song.current.duration || 0)
@@ -120,14 +127,19 @@ function Workspace({ project }: { project: Project }) {
     const a = song.current
     if (a && timeRef.current < a.duration) {
       a.currentTime = timeRef.current
+      a.playbackRate = speed
       a.play().catch(() => {})
     }
     let raf = 0
     let last = performance.now()
     const tick = (now: number) => {
       // The song is the clock while it is sounding, so picture and sound cannot drift apart.
-      const t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + (now - last) / 1000
+      let t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + ((now - last) / 1000) * speed
       last = now
+      if (loop && t >= loopRange.current[1]) {
+        t = loopRange.current[0]
+        if (a) a.currentTime = t
+      }
       if (t >= end) { timeRef.current = end; setTime(end); setPlaying(false); return }
       timeRef.current = t
       setTime(t)
@@ -135,11 +147,15 @@ function Workspace({ project }: { project: Project }) {
     }
     raf = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(raf); a?.pause() }
-  }, [playing, end])
+  }, [playing, end, speed, loop])
 
   const toggle = () => {
     if (!playing && timeRef.current >= end - 0.01) seek(0)
-    if (!playing) select([])
+    if (!playing) {
+      select([])
+      const i = positionsAt(formations, timeRef.current).index
+      loopRange.current = [starts[i] - formations[i].transition, starts[i] + formations[i].hold]
+    }
     setPlaying(!playing)
   }
 
@@ -192,6 +208,7 @@ function Workspace({ project }: { project: Project }) {
     }
   }
 
+  const fileName = project.name.replace(/[\\/:*?"<>|]/g, '-')
   const one = selected.length === 1 ? dancers.find(d => d.id === selected[0]) : undefined
   const f = formations[current] ?? here
 
@@ -210,7 +227,14 @@ function Workspace({ project }: { project: Project }) {
           <button className="btn" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Shift+Z)"><Icon name="redo" />Redo</button>
           <button className="btn" onClick={() => importRef.current?.click()}><Icon name="upload" />Import</button>
           <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={e => { importFile(e.target.files?.[0]); e.target.value = '' }} />
-          <button className="btn btn-solid" onClick={() => download(`${project.name.replace(/[\\/:*?"<>|]/g, '-')}.eight.json`, JSON.stringify(project, null, 2))}><Icon name="download" />Export</button>
+          <details className="menu">
+            <summary className="btn btn-solid"><Icon name="download" />Export</summary>
+            <div className="menu-list" onClick={e => { e.currentTarget.parentElement!.removeAttribute('open') }}>
+              <button onClick={() => download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))}>Routine file, to back up or share</button>
+              <button onClick={() => savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${here.name}.png`).catch(() => setImportError('The picture could not be made in this browser.'))}>This formation as a picture</button>
+              <a href={`#/r/${project.id}/print`}>Print or save as PDF</a>
+            </div>
+          </details>
         </nav>
       </header>
       {importError && <p className="toast" role="alert">{importError} <button className="link" onClick={() => setImportError('')}>Dismiss</button></p>}
@@ -233,7 +257,15 @@ function Workspace({ project }: { project: Project }) {
       <main className="floor">
         <span className="chip">{pad(view.index + 1)} · {gelName(gel)}</span>
         <StageView stage={stage} dancers={dancers} positions={view.positions} selected={editable ? selected : []}
-          onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined} />
+          onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined}
+          ghosts={editable ? formations[current - 1]?.positions : undefined} next={editable ? formations[current + 1]?.positions : undefined} paths={paths}
+          onBend={editable ? (id, via) => edit(p => { const q = p.formations[current].positions[id]; if (via) q.via = via; else delete q.via }) : undefined} />
+        <label className="floor-tool">Paths
+          <select value={paths} onChange={e => setPaths(e.target.value as PathMode)}>
+            <option value="selected">For selected dancers</option><option value="always">For everyone</option><option value="never">Hidden</option>
+          </select>
+        </label>
+        {playing && here.note && <p className="caption">{here.note}</p>}
         <p className="hint">
           {playing ? 'Playing. Press Space to stop.'
             : view.moving ? `Between formations at ${clock(time)}. Click a formation below to edit it.`
@@ -292,6 +324,7 @@ function Workspace({ project }: { project: Project }) {
       </aside>
 
       <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing}
+        speed={speed} onSpeed={setSpeed} loop={loop} onLoop={setLoop}
         onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(); follow() }}
         onPickAudio={() => audioRef.current?.click()} onRemoveAudio={removeAudio} />
       <input ref={audioRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addAudio(e.target.files?.[0]); e.target.value = '' }} />

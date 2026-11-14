@@ -1,0 +1,12 @@
+{
+  "name": "Eight",
+  "short_name": "Eight",
+  "description": "A free choreography and formation planner for dancers, choreographers, and crews.",
+  "start_url": "/#/routines",
+  "display": "standalone",
+  "background_color": "#17171a",
+  "theme_color": "#17171a",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

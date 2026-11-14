@@ -22,6 +22,11 @@ describe('model', () => {
     expect(positionsAt(p.formations, 3).positions[id]).toEqual({ x: 0, y: 0 })
     expect(positionsAt(p.formations, 10)).toMatchObject({ index: 1, moving: true, positions: { [id]: { x: 2, y: 1 } } })
     expect(positionsAt(p.formations, 99)).toMatchObject({ index: 1, moving: false })
+    // A bent path passes through the curve's midpoint, not the straight one.
+    p.formations[1].positions[id].via = { x: 0, y: 4 }
+    expect(positionsAt(p.formations, 10).positions[id]).toMatchObject({ x: 1, y: 2.5 })
+    expect(parseProject(JSON.stringify(p)).formations[1].positions[id].via).toEqual({ x: 0, y: 4 })
+    delete p.formations[1].positions[id].via
     // The first formation can have a moving-in part too; it pushes everything later.
     p.formations[0].transition = 2
     expect(startTimes(p.formations)).toEqual([2, 14])

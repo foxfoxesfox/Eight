@@ -66,7 +66,7 @@ export function Landing() {
           <dl>
             <div><dt>Yours to keep</dt><dd>Routines are saved in your browser on your device. Export any of them as a file to back up or send to your crew.</dd></div>
             <div><dt>Built in counts</dt><dd>Each formation holds for a number of counts and takes a number of counts to reach. Set the tempo and press play.</dd></div>
-            <div><dt>Coming next</dt><dd>Music with a waveform, curved paths, PDF export and share links are planned and not here yet.</dd></div>
+            <div><dt>Timed to your music</dt><dd>Add a song, see its waveform, and stretch each formation to what you hear. Share links and live co-editing are planned and not here yet.</dd></div>
           </dl>
         </section>
       </main>
