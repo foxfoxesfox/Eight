@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { GELS, newProject, positionsAt, startCounts, totalCounts, type Position, type Project } from './model'
+import { GELS, newProject, positionsAt, startTimes, totalTime, type Position, type Project } from './model'
 import { StageView } from './Stage'
 
 // A made-up four-formation routine, used only to show the stage moving.
@@ -13,7 +13,7 @@ const demo: Project = (() => {
     ['Two rows', [[-3, 2.5], [-1, 2.5], [1, 2.5], [3, 2.5], [-3, 5.5], [-1, 5.5], [1, 5.5], [3, 5.5]]],
     ['Circle', [[-2.5, 4], [-1.8, 5.8], [0, 6.5], [1.8, 5.8], [2.5, 4], [1.8, 2.2], [0, 1.5], [-1.8, 2.2]]],
   ]
-  p.formations = shapes.map(([name, pts], i) => ({ id: String(i), name, color: GELS[i].hex, hold: 4, transition: 4, positions: shape(pts) }))
+  p.formations = shapes.map(([name, pts], i) => ({ id: String(i), name, color: GELS[i].hex, hold: 2, transition: 2, positions: shape(pts) }))
   return p
 })()
 
@@ -21,10 +21,10 @@ function Demo() {
   const [count, setCount] = useState(0)
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const total = totalCounts(demo.formations) + 4
+    const total = totalTime(demo.formations) + 2
     const t0 = performance.now()
     let raf = 0
-    const tick = (now: number) => { setCount((((now - t0) / 1000) * 2) % total); raf = requestAnimationFrame(tick) }
+    const tick = (now: number) => { setCount(((now - t0) / 1000) % total); raf = requestAnimationFrame(tick) }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [])
@@ -32,13 +32,13 @@ function Demo() {
   const f = demo.formations[view.index]
   let wash = f.color!
   if (view.moving) {
-    const t = (count - (startCounts(demo.formations)[view.index] - f.transition)) / f.transition
+    const t = (count - (startTimes(demo.formations)[view.index] - f.transition)) / f.transition
     wash = `color-mix(in srgb, ${f.color} ${Math.round(t * 100)}%, ${demo.formations[view.index - 1].color})`
   }
   return (
     <figure className="demo" style={{ '--gel': f.color, '--wash': wash } as CSSProperties}>
       <StageView stage={demo.stage} dancers={demo.dancers} positions={view.positions} label="Example: eight dancers moving through four formations" />
-      <figcaption>Example routine: {f.name.toLowerCase()}, count {Math.floor(count % 8) + 1}</figcaption>
+      <figcaption>Example routine: {f.name.toLowerCase()}, count {Math.floor((count * 2) % 8) + 1}</figcaption>
     </figure>
   )
 }

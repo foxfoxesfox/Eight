@@ -130,8 +130,8 @@ export function addFormation() {
       id: uid(),
       name: `Formation ${p.formations.length + 1}`,
       color,
-      hold: 8,
-      transition: 4,
+      hold: 4,
+      transition: 2,
       positions: JSON.parse(JSON.stringify(src.positions)),
     })
   })

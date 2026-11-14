@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { loadProject, saveProject } from './db'
-import { DANCER_COLORS, GELS, gelName, gelOf, inkOn, parseProject, positionsAt, startCounts, totalCounts, type Project, type Shape } from './model'
+import { clock, MAX_AUDIO_BYTES, readAudio } from './audio'
+import { deleteAudio, loadAudio, loadProject, saveAudio, saveProject } from './db'
+import { DANCER_COLORS, GELS, gelName, gelOf, inkOn, parseProject, positionsAt, round, startTimes, totalTime, type Project, type Shape } from './model'
 import { addDancer, addFormation, deleteFormation, edit, moveDancers, moveFormation, removeDancers, useEditor } from './store'
 import { describe, MarkIcon, SNAP, StageView } from './Stage'
+import { Timeline } from './Timeline'
 import { download, Field, go, Icon } from './ui'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -38,53 +40,122 @@ export function Editor({ id }: { id: string }) {
 function Workspace({ project }: { project: Project }) {
   const { current, selected, past, future, saveError, select, setCurrent, undo, redo } = useEditor()
   const { formations, dancers, stage, bpm } = project
-  const starts = startCounts(formations)
-  const total = totalCounts(formations)
+  const starts = startTimes(formations)
+  const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
 
-  // Playback position in counts; null means we are editing the current formation.
-  const [count, setCount] = useState<number | null>(null)
-  const playing = count !== null
-  const countRef = useRef(0)
+  // The playhead, in seconds. The formation being edited is whichever one it sits on.
+  const [time, setTime] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const timeRef = useRef(0)
+  const song = useRef<HTMLAudioElement | null>(null)
+  const [peaks, setPeaks] = useState<Float32Array | null>(null)
+  const [audioMissing, setAudioMissing] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
+  const audioRef = useRef<HTMLInputElement>(null)
   const [importError, setImportError] = useState('')
+
+  const seek = (t: number) => {
+    const c = Math.max(0, Math.min(end, t))
+    timeRef.current = c
+    setTime(c)
+    if (song.current) song.current.currentTime = Math.min(c, song.current.duration || 0)
+  }
+  /** Puts the playhead on the store's current formation; reads the store so it works right after an edit. */
+  const follow = () => {
+    const s = useEditor.getState()
+    seek(startTimes(s.project!.formations)[s.current] ?? 0)
+  }
+
+  const dropSong = () => {
+    if (!song.current) return
+    song.current.pause()
+    URL.revokeObjectURL(song.current.src)
+    song.current = null
+  }
+  const attachSong = (blob: Blob) => {
+    dropSong()
+    song.current = new Audio(URL.createObjectURL(blob))
+    setAudioMissing(false)
+  }
+  useEffect(() => {
+    let live = true
+    if (project.audio) {
+      loadAudio(project.id).then(async blob => {
+        if (!live) return
+        if (!blob) return setAudioMissing(true)
+        attachSong(blob)
+        const { peaks } = await readAudio(blob)
+        if (live) setPeaks(peaks)
+      }).catch(() => live && setAudioMissing(true))
+    }
+    return () => { live = false; dropSong() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id])
+
+  const addAudio = async (file?: File) => {
+    if (!file) return
+    try {
+      if (!file.type.startsWith('audio/')) throw new Error('That file is not audio. Choose an MP3, WAV or M4A file.')
+      if (file.size > MAX_AUDIO_BYTES) throw new Error('That song is larger than 60 MB. Try a shorter or more compressed file.')
+      const { duration, peaks } = await readAudio(file).catch(() => { throw new Error('This browser could not read that audio file. Try an MP3 or WAV version.') })
+      await saveAudio(project.id, file)
+      attachSong(file)
+      setPeaks(peaks)
+      edit(p => { p.audio = { name: file.name, duration: round(duration) } })
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'That song could not be added.')
+    }
+  }
+  const removeAudio = () => {
+    setPlaying(false)
+    deleteAudio(project.id).catch(() => {})
+    dropSong()
+    setPeaks(null)
+    setAudioMissing(false)
+    edit(p => { delete p.audio })
+  }
 
   useEffect(() => {
     if (!playing) return
+    const a = song.current
+    if (a && timeRef.current < a.duration) {
+      a.currentTime = timeRef.current
+      a.play().catch(() => {})
+    }
     let raf = 0
     let last = performance.now()
     const tick = (now: number) => {
-      countRef.current += ((now - last) / 1000) * (bpm / 60)
+      // The song is the clock while it is sounding, so picture and sound cannot drift apart.
+      const t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + (now - last) / 1000
       last = now
-      if (countRef.current >= total) return stop(formations.length - 1)
-      setCount(countRef.current)
+      if (t >= end) { timeRef.current = end; setTime(end); setPlaying(false); return }
+      timeRef.current = t
+      setTime(t)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, bpm, total])
+    return () => { cancelAnimationFrame(raf); a?.pause() }
+  }, [playing, end])
 
-  const stop = (at?: number) => {
-    setCurrent(at ?? positionsAt(formations, countRef.current).index)
-    setCount(null)
-  }
   const toggle = () => {
-    if (playing) return stop()
-    // From the last formation there is nothing left to play, so start over.
-    countRef.current = current >= formations.length - 1 ? 0 : starts[current]
-    select([])
-    setCount(countRef.current)
+    if (!playing && timeRef.current >= end - 0.01) seek(0)
+    if (!playing) select([])
+    setPlaying(!playing)
   }
 
-  const view = playing ? positionsAt(formations, count) : { index: current, moving: false, positions: formations[current].positions }
+  const view = positionsAt(formations, time)
   const here = formations[view.index]
   const gel = gelOf(here, view.index)
   let wash = gel
-  if (playing && view.moving) {
-    const t = (count - (starts[view.index] - here.transition)) / here.transition
+  if (view.moving) {
+    const t = (time - (starts[view.index] - here.transition)) / here.transition
     wash = `color-mix(in srgb, ${gel} ${Math.round(t * 100)}%, ${gelOf(formations[view.index - 1], view.index - 1)})`
   }
-  const now = playing ? count : starts[current]
+  // Dancers can be moved only while the playhead rests on a formation.
+  const editable = !playing && !view.moving
+
+  useEffect(() => { if (view.index !== current) setCurrent(view.index) }, [view.index, current, setCurrent])
+  useEffect(() => { if (timeRef.current > end) seek(end) })
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -95,9 +166,9 @@ function Workspace({ project }: { project: Project }) {
       if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
       else if (mod && k === 'y') { e.preventDefault(); redo() }
       else if (mod && k === 'a') { e.preventDefault(); select(dancers.map(d => d.id)) }
-      else if (e.key === ' ' && !t.closest('button, a, [role=button]')) { e.preventDefault(); toggle() }
+      else if (e.key === ' ' && !t.closest('button, a, [role=button], [role=slider]')) { e.preventDefault(); toggle() }
       else if (e.key === 'Escape') select([])
-      else if (e.key.startsWith('Arrow') && selected.length && !playing) {
+      else if (e.key.startsWith('Arrow') && selected.length && editable) {
         e.preventDefault()
         const step = e.shiftKey ? 0.1 : SNAP
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
@@ -122,7 +193,7 @@ function Workspace({ project }: { project: Project }) {
   }
 
   const one = selected.length === 1 ? dancers.find(d => d.id === selected[0]) : undefined
-  const f = formations[current]
+  const f = formations[current] ?? here
 
   return (
     <div className="editor" style={{ '--gel': gel, '--wash': wash, '--gel-ink': inkOn(gel) } as CSSProperties}>
@@ -149,25 +220,29 @@ function Workspace({ project }: { project: Project }) {
         <ul className="dancer-list">
           {dancers.map(d => (
             <li key={d.id}>
-              <button className={selected.includes(d.id) ? 'is-selected' : ''} aria-pressed={selected.includes(d.id)} disabled={playing}
+              <button className={selected.includes(d.id) ? 'is-selected' : ''} aria-pressed={selected.includes(d.id)} disabled={!editable}
                 onClick={e => select(e.shiftKey || e.ctrlKey || e.metaKey ? (selected.includes(d.id) ? selected.filter(s => s !== d.id) : [...selected, d.id]) : [d.id])}>
                 <MarkIcon d={d} /><span>{d.name}</span>
               </button>
             </li>
           ))}
         </ul>
-        <button className="btn btn-line" onClick={addDancer} disabled={playing}><Icon name="plus" />Add dancer</button>
+        <button className="btn btn-line" onClick={addDancer} disabled={!editable}><Icon name="plus" />Add dancer</button>
       </aside>
 
       <main className="floor">
         <span className="chip">{pad(view.index + 1)} · {gelName(gel)}</span>
-        <StageView stage={stage} dancers={dancers} positions={view.positions} selected={playing ? [] : selected}
-          onSelect={playing ? undefined : select} onMove={playing ? undefined : m => moveDancers(current, m)} />
-        <p className="hint">{playing ? 'Playing. Press Space to stop.' : 'Drag to move · Shift-click or drag a box to select several · arrow keys nudge · Alt turns snapping off'}</p>
+        <StageView stage={stage} dancers={dancers} positions={view.positions} selected={editable ? selected : []}
+          onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined} />
+        <p className="hint">
+          {playing ? 'Playing. Press Space to stop.'
+            : view.moving ? `Between formations at ${clock(time)}. Click a formation below to edit it.`
+            : 'Drag to move · Shift-click or drag a box to select several · arrow keys nudge · Alt turns snapping off'}
+        </p>
       </main>
 
       <aside className="rail rail-right" aria-label="Details">
-        {one ? (
+        {one && f.positions[one.id] ? (
           <>
             <h2>Dancer</h2>
             <Field label="Name" value={one.name} maxLength={40} onCommit={v => edit(p => { p.dancers.find(d => d.id === one.id)!.name = v })} />
@@ -193,19 +268,19 @@ function Workspace({ project }: { project: Project }) {
             <Field label="Name" value={f.name} maxLength={60} onCommit={v => edit(p => { p.formations[current].name = v })} />
             <Swatches label="Lighting colour" value={gelOf(f, current)} options={GELS.map(g => g.hex)} names={GELS.map(g => g.name)} onPick={c => edit(p => { p.formations[current].color = c })} />
             <div className="pair">
-              <Field label="Hold" type="number" min={1} max={256} step={1} suffix="counts" value={f.hold} onCommit={v => edit(p => { p.formations[current].hold = Number(v) })} />
-              {current > 0 && <Field label="Travel in" type="number" min={0} max={64} step={1} suffix="counts" value={f.transition} onCommit={v => edit(p => { p.formations[current].transition = Number(v) })} />}
+              <Field label="Hold" type="number" min={0.1} max={600} step={0.1} suffix="s" value={f.hold} onCommit={v => edit(p => { p.formations[current].hold = round(Number(v)) })} />
+              {current > 0 && <Field label="Travel in" type="number" min={0} max={600} step={0.1} suffix="s" value={f.transition} onCommit={v => edit(p => { p.formations[current].transition = round(Number(v)) })} />}
             </div>
             <label className="field"><span>Note</span>
               <textarea key={f.id} rows={3} defaultValue={f.note ?? ''} placeholder="What happens here?" onBlur={e => { const v = e.target.value.trim(); if (v !== (f.note ?? '')) edit(p => { p.formations[current].note = v || undefined }) }} />
             </label>
             <div className="row">
-              <button className="btn btn-line" onClick={() => moveFormation(current, current - 1)} disabled={current === 0} aria-label="Move formation earlier"><Icon name="left" />Earlier</button>
-              <button className="btn btn-line" onClick={() => moveFormation(current, current + 1)} disabled={current === formations.length - 1} aria-label="Move formation later">Later<Icon name="right" /></button>
+              <button className="btn btn-line" onClick={() => { moveFormation(current, current - 1); follow() }} disabled={current === 0} aria-label="Move formation earlier"><Icon name="left" />Earlier</button>
+              <button className="btn btn-line" onClick={() => { moveFormation(current, current + 1); follow() }} disabled={current === formations.length - 1} aria-label="Move formation later">Later<Icon name="right" /></button>
             </div>
-            <button className="btn btn-line btn-danger" onClick={() => deleteFormation(current)} disabled={formations.length === 1}><Icon name="trash" />Delete formation</button>
+            <button className="btn btn-line btn-danger" onClick={() => { deleteFormation(current); follow() }} disabled={formations.length === 1}><Icon name="trash" />Delete formation</button>
             <h2 className="spaced">Routine</h2>
-            <Field label="Tempo" type="number" min={30} max={240} step={1} suffix="BPM" value={bpm} onCommit={v => edit(p => { p.bpm = Number(v) })} />
+            <Field label="Tempo of the beat grid" type="number" min={30} max={240} step={1} suffix="BPM" value={bpm} onCommit={v => edit(p => { p.bpm = Number(v) })} />
             <div className="pair">
               <Field label="Stage width" type="number" min={2} max={60} step={0.5} suffix="m" value={stage.width} onCommit={v => edit(p => { p.stage.width = Number(v) })} />
               <Field label="Stage depth" type="number" min={2} max={60} step={0.5} suffix="m" value={stage.depth} onCommit={v => edit(p => { p.stage.depth = Number(v) })} />
@@ -214,31 +289,10 @@ function Workspace({ project }: { project: Project }) {
         )}
       </aside>
 
-      <footer className="deck">
-        <div className="deck-bar">
-          <button className="btn btn-play" onClick={toggle} aria-label={playing ? 'Stop' : 'Play from this formation'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
-          <p className="deck-now"><strong>{here.name}</strong><span>count {Math.floor(now) + 1} of {total} · bar {Math.floor(now / 8) + 1} · {((now * 60) / bpm).toFixed(1)} s</span></p>
-        </div>
-        <div className="reel">
-          <ol className="swatches" style={{ '--eight': `${(8 / total) * 100}%` } as CSSProperties}>
-            {formations.map((fm, i) => {
-              const hex = gelOf(fm, i)
-              return (
-                <li key={fm.id} style={{ flexGrow: fm.hold + (i ? fm.transition : 0) }}>
-                  {i > 0 && fm.transition > 0 && <span className="travel" style={{ flexGrow: fm.transition, '--a': gelOf(formations[i - 1], i - 1), '--b': hex } as CSSProperties} title={`${plural(fm.transition, 'count')} to travel`} />}
-                  <button className={`swatch${i === view.index ? ' is-current' : ''}`} style={{ flexGrow: fm.hold, background: hex, color: inkOn(hex) }} aria-current={i === view.index}
-                    onClick={() => { setCount(null); setCurrent(i); select([]) }}>
-                    <small>{pad(i + 1)} · {gelName(hex)}</small>
-                    <span><b>{fm.name}</b><i>{plural(fm.hold, 'count')}</i></span>
-                  </button>
-                </li>
-              )
-            })}
-            <span className="playhead" style={{ left: `${(now / total) * 100}%` }} aria-hidden="true" />
-          </ol>
-          <button className="btn btn-add" onClick={addFormation} disabled={playing} aria-label="Add a formation after this one"><Icon name="plus" />Add formation</button>
-        </div>
-      </footer>
+      <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing}
+        onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(); follow() }}
+        onPickAudio={() => audioRef.current?.click()} onRemoveAudio={removeAudio} />
+      <input ref={audioRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addAudio(e.target.files?.[0]); e.target.value = '' }} />
     </div>
   )
 }

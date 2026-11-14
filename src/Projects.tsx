@@ -87,7 +87,7 @@ export function Projects() {
                       <span className="routine-text"><b>{p.name}</b><i>{p.dancers.length} dancers · {p.formations.length} formations · edited {when.format(p.updatedAt)}</i></span>
                     </a>
                     <span className="routine-actions">
-                      <button className="btn btn-line" onClick={() => run(saveProject({ ...p, id: uid(), name: `${p.name} copy`, archived: false, createdAt: Date.now(), updatedAt: Date.now() }))}>Duplicate</button>
+                      <button className="btn btn-line" onClick={() => run(saveProject({ ...p, id: uid(), name: `${p.name} copy`, audio: undefined, archived: false, createdAt: Date.now(), updatedAt: Date.now() }))}>Duplicate</button>
                       <button className="btn btn-line" onClick={() => run(saveProject({ ...p, archived: !p.archived }))}>{p.archived ? 'Restore' : 'Archive'}</button>
                       <button className="btn btn-line btn-danger" onClick={() => { if (confirm(`Delete "${p.name}" for good? This cannot be undone. Export it first if you might want it back.`)) run(deleteProject(p.id)) }}>Delete</button>
                     </span>

@@ -20,9 +20,9 @@ export interface Formation {
   id: string
   name: string
   color?: string
-  /** Counts held in this formation. */
+  /** Seconds held in this formation. */
   hold: number
-  /** Counts taken to travel here from the previous formation (ignored on the first). */
+  /** Seconds taken to travel here from the previous formation (ignored on the first). */
   transition: number
   note?: string
   positions: Record<string, Position>
@@ -37,13 +37,16 @@ export interface Stage {
 
 export interface Project {
   /** File format version, bumped on breaking changes. */
-  version: 1
+  version: 2
   id: string
   name: string
   stage: Stage
   dancers: Dancer[]
   formations: Formation[]
+  /** Tempo of the optional beat grid. */
   bpm: number
+  /** The song itself is stored beside the project, never inside it. */
+  audio?: { name: string; duration: number }
   archived?: boolean
   createdAt: number
   updatedAt: number
@@ -119,20 +122,20 @@ export function newProject(name: string, dancerCount: number, stage: Partial<Sta
   const dancers = Array.from({ length: dancerCount }, (_, i) => newDancer(i))
   const now = Date.now()
   return {
-    version: 1,
+    version: 2,
     id: uid(),
     name,
     stage: s,
     dancers,
-    formations: [{ id: uid(), name: 'Formation 1', color: GELS[0].hex, hold: 8, transition: 0, positions: lineUp(dancers.map(d => d.id), s) }],
+    formations: [{ id: uid(), name: 'Formation 1', color: GELS[0].hex, hold: 4, transition: 0, positions: lineUp(dancers.map(d => d.id), s) }],
     bpm: 120,
     createdAt: now,
     updatedAt: now,
   }
 }
 
-/** Start time, in counts, of each formation's hold. */
-export function startCounts(formations: Formation[]): number[] {
+/** Start time, in seconds, of each formation's hold. */
+export function startTimes(formations: Formation[]): number[] {
   let t = 0
   return formations.map((f, i) => {
     if (i > 0) t += f.transition
@@ -142,13 +145,13 @@ export function startCounts(formations: Formation[]): number[] {
   })
 }
 
-export function totalCounts(formations: Formation[]): number {
+export function totalTime(formations: Formation[]): number {
   return formations.reduce((t, f, i) => t + f.hold + (i > 0 ? f.transition : 0), 0)
 }
 
-/** Where every dancer is at `count`: held in a formation, or part-way along a straight line between two. */
+/** Where every dancer is at time `count` (seconds): held in a formation, or part-way along a straight line between two. */
 export function positionsAt(formations: Formation[], count: number): { index: number; moving: boolean; positions: Record<string, Position> } {
-  const starts = startCounts(formations)
+  const starts = startTimes(formations)
   for (let i = formations.length - 1; i >= 0; i--) {
     const f = formations[i]
     if (count >= starts[i] || i === 0) return { index: i, moving: false, positions: f.positions }
@@ -168,6 +171,13 @@ export function positionsAt(formations: Formation[], count: number): { index: nu
   return { index: 0, moving: false, positions: formations[0]?.positions ?? {} }
 }
 
+/** Version 1 stored durations in counts; version 2 stores seconds. */
+export function migrate(p: any): Project {
+  if (p.version !== 1) return p
+  const k = 60 / (p.bpm > 0 ? p.bpm : 120)
+  return { ...p, version: 2, formations: p.formations.map((f: any) => ({ ...f, hold: round(f.hold * k), transition: round(f.transition * k) })) }
+}
+
 /** Validates an imported file at the trust boundary; throws a readable message on anything unexpected. */
 export function parseProject(text: string): Project {
   let p: any
@@ -178,7 +188,7 @@ export function parseProject(text: string): Project {
   }
   const num = (n: unknown) => typeof n === 'number' && Number.isFinite(n)
   const ok =
-    p && p.version === 1 && typeof p.name === 'string' &&
+    p && (p.version === 1 || p.version === 2) && typeof p.name === 'string' &&
     p.stage && num(p.stage.width) && num(p.stage.depth) && p.stage.width > 0 && p.stage.depth > 0 &&
     Array.isArray(p.dancers) && p.dancers.every((d: any) => d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.label === 'string') &&
     Array.isArray(p.formations) && p.formations.length > 0 &&
@@ -187,5 +197,6 @@ export function parseProject(text: string): Project {
   if (!ok) throw new Error('This file is not an Eight project, or it was made by a newer version.')
   const now = Date.now()
   // A fresh id so an import never overwrites the project it was exported from.
-  return { ...p, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, stage: { unit: 'm', gridSize: 1, ...p.stage }, createdAt: now, updatedAt: now }
+  // The song does not travel inside the file, so an import starts without one.
+  return migrate({ ...p, audio: undefined, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, stage: { unit: 'm', gridSize: 1, ...p.stage }, createdAt: now, updatedAt: now })
 }
