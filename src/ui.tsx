@@ -7,6 +7,8 @@ const paths: Record<string, ReactNode> = {
   redo: <path d="m15 7 5 5-5 5M20 12H10a6 6 0 0 0 0 12" transform="translate(0 -3)" />,
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
+  sun: <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />,
+  moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
   left: <path d="m14 6-6 6 6 6" />,
   right: <path d="m10 6 6 6-6 6" />,
   trash: <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" />,
@@ -23,7 +25,9 @@ export function Icon({ name }: { name: keyof typeof paths }) {
 }
 
 /** Text or number input that commits on blur or Enter, so one edit is one undo step. */
-export function Field({ label, value, onCommit, type = 'text', min, max, step, maxLength, suffix }: {
+export function Field({ label, value, onCommit, type = 'text', min, max, step, maxLength, suffix, placeholder, allowEmpty }: {
+  placeholder?: string
+  allowEmpty?: boolean
   label: string
   value: string | number
   onCommit: (v: string) => void
@@ -43,7 +47,7 @@ export function Field({ label, value, onCommit, type = 'text', min, max, step, m
       if (!Number.isFinite(n)) return setDraft(String(value))
       v = String(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n)))
     }
-    if (!v) return setDraft(String(value))
+    if (!v && !allowEmpty) return setDraft(String(value))
     setDraft(v)
     if (v !== String(value)) onCommit(v)
   }
@@ -58,6 +62,7 @@ export function Field({ label, value, onCommit, type = 'text', min, max, step, m
           max={max}
           step={step}
           maxLength={maxLength}
+          placeholder={placeholder}
           onChange={e => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={e => {
@@ -71,10 +76,22 @@ export function Field({ label, value, onCommit, type = 'text', min, max, step, m
   )
 }
 
-export const go = (hash: string) => { location.hash = hash }
+/** Switches between the light and dark themes and remembers the choice on this device. */
+export function ThemeToggle() {
+  const [dark, setDark] = useState(document.documentElement.dataset.theme === 'dark')
+  const flip = () => {
+    const next = dark ? 'light' : 'dark'
+    document.documentElement.dataset.theme = next
+    try { localStorage.setItem('eight.theme', next) } catch { /* private windows may refuse storage; the theme still applies for this visit */ }
+    setDark(!dark)
+  }
+  return <button className="btn" onClick={flip} aria-pressed={dark} title="Switch between light and dark"><Icon name={dark ? 'sun' : 'moon'} />{dark ? 'Light' : 'Dark'}</button>
+}
 
-/** Saves a stage drawing as a PNG. Styles live in the stylesheet, so they are copied onto the clone before it is drawn. */
-export async function savePng(svg: SVGSVGElement, name: string) {
+export const go =(hash: string) => { location.hash = hash }
+
+/** Draws a stage onto a canvas. Styles live in the stylesheet, so they are copied onto the clone before it is drawn. */
+export async function stageCanvas(svg: SVGSVGElement, w = 1800): Promise<HTMLCanvasElement> {
   const copy = svg.cloneNode(true) as SVGSVGElement
   const to = copy.querySelectorAll<SVGElement>('*')
   const props = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'letter-spacing', 'paint-order']
@@ -84,7 +101,6 @@ export async function savePng(svg: SVGSVGElement, name: string) {
   })
   copy.querySelectorAll('.dancer-halo, .bend, .stage-marquee').forEach(el => el.remove())
   const vb = svg.viewBox.baseVal
-  const w = 1800
   const h = Math.round((w * vb.height) / vb.width)
   copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   copy.setAttribute('width', String(w))
@@ -99,6 +115,11 @@ export async function savePng(svg: SVGSVGElement, name: string) {
   g.fillStyle = '#fff'
   g.fillRect(0, 0, w, h)
   g.drawImage(img, 0, 0, w, h)
+  return canvas
+}
+
+export async function savePng(svg: SVGSVGElement, name: string) {
+  const canvas = await stageCanvas(svg)
   const blob = await new Promise<Blob | null>(done => canvas.toBlob(done, 'image/png'))
   if (!blob) throw new Error('no image')
   download(name, blob, 'image/png')

@@ -131,11 +131,19 @@ export function newProject(name: string, dancerCount: number, stage: Partial<Sta
     name,
     stage: s,
     dancers,
-    formations: [{ id: uid(), name: 'Formation 1', color: GELS[0].hex, hold: 4, transition: 0, positions: lineUp(dancers.map(d => d.id), s) }],
+    formations: [{ id: uid(), name: '', color: GELS[0].hex, hold: 4, transition: 0, positions: lineUp(dancers.map(d => d.id), s) }],
     bpm: 120,
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/** How a formation is shown: its own name with "Formation N" beneath, or just "Formation N" when it has none. */
+export function formationLabel(f: Formation, i: number): { title: string; sub: string } {
+  const auto = `Formation ${i + 1}`
+  const own = (f.name ?? '').trim()
+  // Names like "Formation 3" used to be filled in automatically; they count as unnamed so the number follows the order.
+  return own && !/^Formation \d+$/.test(own) ? { title: own, sub: auto } : { title: auto, sub: '' }
 }
 
 /** Start time, in seconds, of each formation's hold. */

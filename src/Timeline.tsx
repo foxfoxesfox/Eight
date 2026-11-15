@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
-import { gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
+import { formationLabel, gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
 import { edit } from './store'
 import { Icon } from './ui'
 
 const MIN_HOLD = 0.1
-const pad = (n: number) => String(n).padStart(2, '0')
 const secs = (n: number) => `${n.toFixed(n < 10 ? 2 : 1)} s`
 
 type Edge = 'hold' | 'transition'
@@ -133,7 +132,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
       style={edge === 'transition' ? { left: Math.max(0, formations[i].transition * pps - 6) } : undefined}
       role="slider"
       tabIndex={0}
-      aria-label={edge === 'hold' ? `How long ${formations[i].name} holds` : `How much of ${formations[i].name} is spent moving in`}
+      aria-label={edge === 'hold' ? `How long ${formationLabel(formations[i], i).title} holds` : `How much of ${formationLabel(formations[i], i).title} is spent moving in`}
       aria-valuemin={edge === 'hold' ? MIN_HOLD : 0}
       aria-valuemax={most(i, edge)}
       aria-valuenow={formations[i][edge]}
@@ -163,7 +162,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     <footer className="deck">
       <div className="deck-bar">
         <button className="btn btn-play" onClick={onToggle} aria-label={playing ? 'Stop' : 'Play from the playhead'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
-        <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formations[index].name} · bar {Math.floor(beatNow / 8) + 1}, count {(beatNow % 8) + 1}</span></p>
+        <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / 8) + 1}, count {(beatNow % 8) + 1}</span></p>
         <div className="deck-tools">
           <label className="check">Speed
             <select value={speed} onChange={e => onSpeed(Number(e.target.value))}>
@@ -194,14 +193,16 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
             {formations.map((f, i) => {
               const hex = gelOf(f, i)
               const move = f.transition
+              const label = formationLabel(f, i)
               return (
                 <li key={f.id}>
                   <div className={`clip${i === index ? ' is-current' : ''}`} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
                     <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])}>
-                      <b>{pad(i + 1)} {f.name}</b>
+                      <b>{label.title}</b>
+                      {label.sub && <i>{label.sub}</i>}
                     </button>
                     {move > 0 && (
-                      <button className="clip-move" style={{ width: move * pps }} onClick={() => onSeek(starts[i] - move)} aria-label={`Moving into ${f.name}, ${secs(move)}`}>
+                      <button className="clip-move" style={{ width: move * pps }} onClick={() => onSeek(starts[i] - move)} aria-label={`Moving into ${label.title}, ${secs(move)}`}>
                         {secs(move)} moving in
                       </button>
                     )}

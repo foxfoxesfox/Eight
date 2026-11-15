@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { GELS, newProject, positionsAt, startTimes, totalTime, type Position, type Project } from './model'
 import { StageView } from './Stage'
+import { ThemeToggle } from './ui'
 
 // A made-up four-formation routine, used only to show the stage moving.
 const demo: Project = (() => {
@@ -48,7 +49,7 @@ export function Landing() {
     <div className="page landing">
       <header className="bar">
         <span className="wordmark">Eight</span>
-        <nav className="bar-actions"><a className="btn btn-solid" href="#/routines">Open the planner</a></nav>
+        <nav className="bar-actions"><ThemeToggle /><a className="btn btn-solid" href="#/routines">Open the planner</a></nav>
       </header>
       <main>
         <section className="hero">

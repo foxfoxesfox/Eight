@@ -123,6 +123,9 @@ A neutral warm-grey shell around eight saturated lighting colours.
 - **Mute** (`mute`): secondary text; passes 4.5:1 on paper.
 - **Bad** (`bad`): destructive actions and error text.
 
+### Dark theme
+A toggle in the top bar switches to charcoal panels (ink `#f1efea`, paper `#242428`, ground `#19191c`, white `#2e2e33`, line `#4a4a52`, mute `#b5b0a6`). The lighting colours do not change. The top bar and landing hero stay dark in both themes, and print sheets stay light in both because they are paper.
+
 ### Named Rules
 **The One Wash Rule.** Saturated colour on a screen belongs to formations. The shell never takes a lighting colour of its own beyond the 5px underline of the top bar.
 

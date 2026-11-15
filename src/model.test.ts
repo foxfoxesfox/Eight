@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('./db', () => ({ saveProject: () => Promise.resolve() }))
 
-import { labelFor, newProject, parseProject, positionsAt, startTimes, totalTime } from './model'
+import { formationLabel, labelFor, newProject, parseProject, positionsAt, startTimes, totalTime } from './model'
 import { addDancer, addFormation, moveDancers, removeDancers, useEditor } from './store'
 
 describe('model', () => {
@@ -31,6 +31,13 @@ describe('model', () => {
     p.formations[0].transition = 2
     expect(startTimes(p.formations)).toEqual([2, 14])
     expect(positionsAt(p.formations, 1)).toMatchObject({ index: 0, moving: true, positions: { [id]: { x: 0, y: 0 } } })
+  })
+
+  it('names formations by their own name, numbering them by position', () => {
+    const f = newProject('x', 1).formations[0]
+    expect(formationLabel(f, 2)).toEqual({ title: 'Formation 3', sub: '' })
+    expect(formationLabel({ ...f, name: 'Formation 1' }, 2)).toEqual({ title: 'Formation 3', sub: '' })
+    expect(formationLabel({ ...f, name: 'Chorus' }, 2)).toEqual({ title: 'Chorus', sub: 'Formation 3' })
   })
 
   it('round-trips a project through JSON and rejects junk', () => {

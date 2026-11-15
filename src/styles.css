@@ -9,6 +9,10 @@
   --gel: #3a22b8;
   --wash: var(--gel);
   --gel-ink: #fff;
+  /* The top bar and the landing hero stay dark in both themes. */
+  --bar: #17171a;
+  --bar-ink: #f4f2ee;
+  color-scheme: light;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   font-family: 'Figtree Variable', system-ui, sans-serif;
   font-size: 15px;
@@ -21,6 +25,30 @@
   accent-color: var(--ink);
   caret-color: var(--gel);
 }
+/* Dark theme: the same lighting colours on charcoal panels. */
+:root[data-theme='dark'] {
+  --ink: #f1efea;
+  --paper: #242428;
+  --ground: #19191c;
+  --white: #2e2e33;
+  --line: #4a4a52;
+  --mute: #b5b0a6;
+  --bad: #ff9486;
+  --bar: #0e0e10;
+  color-scheme: dark;
+  scrollbar-color: #5c5c64 transparent;
+}
+/* Lighting colours are too dark to ring a control on charcoal, so focus lightens them. */
+[data-theme='dark'] :focus-visible { outline-color: color-mix(in srgb, var(--gel) 45%, #fff); }
+[data-theme='dark'] .toast { background: #3a1a15; color: #ffd9d2; }
+[data-theme='dark'] .stage-floor { fill: color-mix(in srgb, var(--wash) 22%, var(--white)); }
+[data-theme='dark'] .stage-grid line { stroke: color-mix(in srgb, var(--wash) 45%, transparent); }
+[data-theme='dark'] .stage-centre, [data-theme='dark'] .stage-edge { stroke: color-mix(in srgb, var(--wash) 65%, #fff); }
+[data-theme='dark'] .sheet .stage-floor { fill: color-mix(in srgb, var(--wash) 15%, var(--white)); }
+[data-theme='dark'] .sheet .stage-grid line { stroke: color-mix(in srgb, var(--wash) 24%, transparent); }
+[data-theme='dark'] .sheet .stage-centre, [data-theme='dark'] .sheet .stage-edge { stroke: var(--wash); }
+[data-theme='dark'] .save-ink .stage-floor { fill: #fff; }
+[data-theme='dark'] .wave canvas { color: #f1efeab3; }
 *, *::before, *::after { box-sizing: border-box; }
 body, h1, h2, p, ul, ol, dl, dd, figure, fieldset { margin: 0; padding: 0; }
 ul, ol { list-style: none; }
@@ -28,21 +56,21 @@ fieldset { border: 0; min-width: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--gel); color: #fff; }
 :focus-visible { outline: 2px solid var(--gel); outline-offset: 2px; }
-.bar :focus-visible { outline-color: var(--paper); }
+.bar :focus-visible, .hero :focus-visible { outline-color: var(--bar-ink); }
 
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  background: transparent; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+  background: transparent; color: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
   transition: background-color 0.15s var(--ease), transform 0.15s var(--ease);
 }
 .btn:hover:not(:disabled) { background: color-mix(in srgb, currentColor 10%, transparent); }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-solid, .btn-play { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.btn-solid:hover:not(:disabled), .btn-play:hover:not(:disabled) { background: #33333a; }
-.bar .btn-solid, .hero .btn-solid { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.btn-solid:hover:not(:disabled), .btn-play:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 84%, var(--paper)); }
+.bar .btn-solid, .hero .btn-solid { background: var(--bar-ink); color: var(--bar); border-color: var(--bar-ink); }
 .bar .btn-solid:hover:not(:disabled), .hero .btn-solid:hover { background: #fff; }
 .btn-line { border-color: var(--line); }
 .btn-danger { color: var(--bad); }
@@ -54,7 +82,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Top bar */
 .bar {
   display: flex; align-items: center; gap: 20px; min-height: 56px; padding: 8px 20px;
-  background: var(--ink); color: var(--paper); border-bottom: 5px solid var(--wash); transition: border-color 0.3s var(--ease);
+  background: var(--bar); color: var(--bar-ink); border-bottom: 5px solid var(--wash); transition: border-color 0.3s var(--ease);
 }
 .wordmark { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: inherit; text-decoration: none; line-height: 1; }
 .bar-title { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1; }
@@ -76,7 +104,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 input, select, textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--white);
 }
-input::placeholder, textarea::placeholder { color: #6b665d; }
+input::placeholder, textarea::placeholder { color: var(--mute); }
 textarea { resize: vertical; min-height: 72px; }
 input[type='number'] { appearance: textfield; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -101,7 +129,7 @@ input[type='number'] { appearance: textfield; }
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 5px 8px; border: 0; border-radius: 8px;
   background: transparent; text-align: left; cursor: pointer; font-weight: 500;
 }
-.dancer-list button:hover:not(:disabled) { background: #00000010; }
+.dancer-list button:hover:not(:disabled) { background: color-mix(in srgb, currentColor 8%, transparent); }
 .dancer-list button.is-selected { background: var(--ink); color: var(--paper); }
 .dancer-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mark-icon { width: 28px; height: 28px; flex: none; }
@@ -215,10 +243,10 @@ input[type='number'] { appearance: textfield; }
 
 /* Landing */
 .landing { background: var(--paper); }
-.landing .bar { border-bottom-color: var(--ink); }
+.landing .bar { border-bottom-color: var(--bar); }
 .hero {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: center; gap: clamp(24px, 4vw, 64px);
-  min-height: calc(100dvh - 56px); padding: clamp(32px, 5vw, 72px) clamp(20px, 6vw, 96px); background: var(--ink); color: var(--paper);
+  min-height: calc(100dvh - 56px); padding: clamp(32px, 5vw, 72px) clamp(20px, 6vw, 96px); background: var(--bar); color: var(--bar-ink);
 }
 .hero-copy { display: grid; gap: 22px; justify-items: start; }
 .hero h1 { font-size: clamp(3rem, 6.4vw, 6rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.04em; text-wrap: balance; }
@@ -226,7 +254,7 @@ input[type='number'] { appearance: textfield; }
 .hero .fine { font-size: 0.95rem; color: #bdb8ae; }
 .demo { display: grid; gap: 12px; }
 .demo .stage { aspect-ratio: 13 / 11; height: auto; filter: drop-shadow(0 0 70px color-mix(in srgb, var(--wash) 70%, transparent)); }
-.demo .stage-front { fill: var(--paper); }
+.demo .stage-front { fill: var(--bar-ink); }
 .demo figcaption { text-align: center; font-size: 0.95rem; color: #bdb8ae; }
 .about { padding: clamp(48px, 7vw, 96px) clamp(20px, 6vw, 96px); display: grid; gap: 20px; }
 .about h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -237,7 +265,7 @@ input[type='number'] { appearance: textfield; }
 .about dl div:nth-child(2) { border-color: #007f80; }
 .about dl div:nth-child(3) { border-color: #cf2468; }
 .about dt { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
-.about dd { color: #3d3a34; max-width: 38ch; }
+.about dd { color: var(--mute); max-width: 38ch; }
 .foot { margin-top: auto; padding: 22px clamp(20px, 6vw, 96px); color: var(--mute); font-size: 0.95rem; border-top: 1px solid var(--line); }
 
 /* Paths, ghosts and stage overlays */
@@ -272,7 +300,11 @@ input[type='number'] { appearance: textfield; }
 .print-options select, .print-options input { color: var(--ink); }
 .sheets { display: grid; gap: 24px; padding: 24px; max-width: 1100px; margin: 0 auto; }
 .per-4 .sheets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.sheet { display: grid; gap: 10px; padding: 20px; background: #fff; border-radius: 6px; break-inside: avoid; }
+/* Sheets are paper: they stay light in both themes, on screen, in print and in the PDF. */
+.sheet {
+  display: grid; gap: 10px; padding: 20px; background: #fff; border-radius: 6px; break-inside: avoid;
+  --ink: #17171a; --paper: #f4f2ee; --white: #fdfcfa; --line: #cfcac0; --mute: #5c5850; color: var(--ink);
+}
 .sheet h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
 .sheet header p { color: var(--mute); font-size: 0.95rem; }
 .sheet .stage { height: auto; aspect-ratio: 13 / 10; }

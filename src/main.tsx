@@ -10,6 +10,11 @@ import { Projects } from './Projects'
 // Offline use: only in the built site, so the dev server's live reload is never served from a cache.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
 
+// The saved theme, or the system's on a first visit, is set before anything is drawn.
+let theme: string | null = null
+try { theme = localStorage.getItem('eight.theme') } catch { /* storage refused: fall back to the system setting */ }
+document.documentElement.dataset.theme = theme === 'dark' || theme === 'light' ? theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+
 // Hash routes, so the static host needs no rewrite rules.
 const subscribe = (cb: () => void) => { addEventListener('hashchange', cb); return () => removeEventListener('hashchange', cb) }
 

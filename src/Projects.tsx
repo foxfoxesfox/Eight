@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { deleteProject, listProjects, saveProject } from './db'
 import { gelOf, newProject, parseProject, uid, type Project } from './model'
 import { StageView } from './Stage'
-import { download, go, Icon } from './ui'
+import { download, go, Icon, ThemeToggle } from './ui'
 
 const when = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -48,6 +48,7 @@ export function Projects() {
       <header className="bar">
         <a className="wordmark" href="#/">Eight</a>
         <nav className="bar-actions" aria-label="Library actions">
+          <ThemeToggle />
           <button className="btn" onClick={() => fileRef.current?.click()}><Icon name="upload" />Import a file</button>
           <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={e => { importFile(e.target.files?.[0]); e.target.value = '' }} />
           {!!all?.length && <button className="btn" onClick={() => download('eight-backup.json', JSON.stringify(all, null, 2))}><Icon name="download" />Back up all</button>}

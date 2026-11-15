@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { clock, MAX_AUDIO_BYTES, readAudio } from './audio'
 import { deleteAudio, loadAudio, loadProject, saveAudio, saveProject } from './db'
-import { DANCER_COLORS, GELS, gelName, gelOf, inkOn, parseProject, positionsAt, round, startTimes, totalTime, type Project, type Shape } from './model'
+import { DANCER_COLORS, formationLabel, GELS, gelName, gelOf, inkOn, parseProject, positionsAt, round, startTimes, totalTime, type Project, type Shape } from './model'
 import { addDancer, addFormation, deleteFormation, edit, moveDancers, moveFormation, removeDancers, useEditor } from './store'
 import { describe, MarkIcon, SNAP, StageView, type PathMode } from './Stage'
 import { Timeline } from './Timeline'
-import { download, Field, go, Icon, savePng } from './ui'
+import { download, Field, go, Icon, savePng, ThemeToggle } from './ui'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
@@ -223,6 +223,7 @@ function Workspace({ project }: { project: Project }) {
           </span>
         </div>
         <nav className="bar-actions" aria-label="Routine actions">
+          <ThemeToggle />
           <button className="btn" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Icon name="undo" />Undo</button>
           <button className="btn" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Shift+Z)"><Icon name="redo" />Redo</button>
           <button className="btn" onClick={() => importRef.current?.click()}><Icon name="upload" />Import</button>
@@ -231,8 +232,8 @@ function Workspace({ project }: { project: Project }) {
             <summary className="btn btn-solid"><Icon name="download" />Export</summary>
             <div className="menu-list" onClick={e => { e.currentTarget.parentElement!.removeAttribute('open') }}>
               <button onClick={() => download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))}>Routine file, to back up or share</button>
-              <button onClick={() => savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${here.name}.png`).catch(() => setImportError('The picture could not be made in this browser.'))}>This formation as a picture</button>
-              <a href={`#/r/${project.id}/print`}>Print or save as PDF</a>
+              <button onClick={() => savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${formationLabel(here, view.index).title}.png`).catch(() => setImportError('The picture could not be made in this browser.'))}>This formation as a picture</button>
+              <a href={`#/r/${project.id}/print`}>All formations as a PDF</a>
             </div>
           </details>
         </nav>
@@ -297,7 +298,7 @@ function Workspace({ project }: { project: Project }) {
         ) : (
           <>
             <h2>Formation {pad(current + 1)}</h2>
-            <Field label="Name" value={f.name} maxLength={60} onCommit={v => edit(p => { p.formations[current].name = v })} />
+            <Field label="Name (optional)" value={formationLabel(f, current).sub ? f.name : ''} placeholder="Chorus, bridge, final pose…" allowEmpty maxLength={60} onCommit={v => edit(p => { p.formations[current].name = v })} />
             <Swatches label="Lighting colour" value={gelOf(f, current)} options={GELS.map(g => g.hex)} names={GELS.map(g => g.name)} onPick={c => edit(p => { p.formations[current].color = c })} />
             <div className="pair">
               <Field label="In formation" type="number" min={0.1} max={600} step={0.1} suffix="s" value={f.hold} onCommit={v => edit(p => { p.formations[current].hold = round(Number(v)) })} />

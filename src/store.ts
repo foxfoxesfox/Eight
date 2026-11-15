@@ -128,7 +128,7 @@ export function addFormation() {
     const color = GELS.map((_, k) => GELS[(p.formations.length + k) % GELS.length].hex).find(h => !taken.includes(h))
     p.formations.splice(current + 1, 0, {
       id: uid(),
-      name: `Formation ${p.formations.length + 1}`,
+      name: '',
       color,
       hold: 4,
       transition: 2,
