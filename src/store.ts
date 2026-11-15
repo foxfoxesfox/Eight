@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { applyPatches, enablePatches, produceWithPatches, type Patch } from 'immer'
 import { saveProject } from './db'
-import { GELS, gelOf, lineUp, newDancer, round, uid, type Position, type Project } from './model'
+import { GELS, gelOf, isPerson, labelFor, lineUp, newDancer, newLengths, place, PROP_COLOR, round, uid, type Position, type Project, type Stage } from './model'
 
 enablePatches()
 
@@ -28,15 +28,24 @@ interface EditorState {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+let unsaved: Project | undefined
 
 function persist(p: Project) {
+  unsaved = p
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    saveProject(p).then(
-      () => useEditor.setState({ saveError: null }),
-      e => useEditor.setState({ saveError: String(e?.message ?? e) }),
-    )
-  }, 300)
+  saveTimer = setTimeout(flush, 300)
+}
+
+/** Saves now. Called when the editor closes, so the routine list never shows the routine as it was a moment ago. */
+function flush() {
+  clearTimeout(saveTimer)
+  const p = unsaved
+  unsaved = undefined
+  if (!p) return
+  saveProject(p).then(
+    () => useEditor.setState({ saveError: null }),
+    e => useEditor.setState({ saveError: String(e?.message ?? e) }),
+  )
 }
 
 export const useEditor = create<EditorState>((set, get) => ({
@@ -48,7 +57,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   saveError: null,
 
   open: p => set({ project: p, current: 0, selected: [], past: [], future: [], saveError: null }),
-  close: () => set({ project: null, selected: [], past: [], future: [] }),
+  close: () => { flush(); set({ project: null, selected: [], past: [], future: [] }) },
 
   edit: recipe => {
     const { project, past } = get()
@@ -93,22 +102,39 @@ export const edit = (r: (p: Project) => void) => useEditor.getState().edit(r)
 
 export function moveDancers(formation: number, moves: Record<string, Position>) {
   edit(p => {
-    const { width, depth } = p.stage
     for (const id in moves) {
       const q = p.formations[formation].positions[id]
-      if (!q) continue
-      // Dancers may sit up to 2 m outside the stage (wings), no further.
-      q.x = round(Math.max(-width / 2 - 2, Math.min(width / 2 + 2, moves[id].x)))
-      q.y = round(Math.max(-2, Math.min(depth + 2, moves[id].y)))
+      if (q) place(p.stage, q, moves[id])
     }
+  })
+}
+
+/** Changes the stage size and pulls in anyone the new stage would leave out of sight. */
+export function resizeStage(size: Partial<Pick<Stage, 'width' | 'depth'>>) {
+  edit(p => {
+    Object.assign(p.stage, size)
+    for (const f of p.formations) for (const id in f.positions) place(p.stage, f.positions[id], f.positions[id])
   })
 }
 
 export function addDancer() {
   edit(p => {
-    const d = newDancer(p.dancers.length)
+    // Skip past labels still in use, so removing a dancer and adding one never makes two with the same letter.
+    const used = new Set(p.dancers.map(d => d.label))
+    let i = p.dancers.filter(isPerson).length
+    while (used.has(labelFor(i))) i++
+    const d = newDancer(i)
     p.dancers.push(d)
     for (const f of p.formations) f.positions[d.id] = { x: 0, y: round(p.stage.depth / 2) }
+  })
+}
+
+/** Adds a prop: a 2 m by 1 m slab in the middle of the stage, to be renamed, resized and moved like a dancer. */
+export function addProp() {
+  edit(p => {
+    const id = uid()
+    p.dancers.push({ id, name: `Prop ${p.dancers.filter(d => d.prop).length + 1}`, label: '', color: PROP_COLOR, shape: 'square', prop: { w: 2, h: 1 } })
+    for (const f of p.formations) f.positions[id] = { x: 0, y: round(p.stage.depth / 2) }
   })
 }
 
@@ -119,8 +145,12 @@ export function removeDancers(ids: string[]) {
   })
 }
 
-export function addFormation() {
-  const { current } = useEditor.getState()
+/** Where everyone stands, without the bends of the paths that brought them there. */
+const stand = (positions: Record<string, Position>): Record<string, Position> =>
+  Object.fromEntries(Object.entries(positions).map(([id, { via, ...q }]) => [id, q]))
+
+/** Adds a formation after formation `current`, with everyone standing where they are in it. */
+export function addFormation(current = useEditor.getState().current) {
   edit(p => {
     const src = p.formations[current]
     // First colour, starting from the next in order, that neither neighbour already has.
@@ -130,9 +160,8 @@ export function addFormation() {
       id: uid(),
       name: '',
       color,
-      hold: 4,
-      transition: 2,
-      positions: JSON.parse(JSON.stringify(src.positions)),
+      ...newLengths(p as Project),
+      positions: stand(src.positions),
     })
   })
   useEditor.setState({ current: current + 1 })
@@ -154,8 +183,16 @@ export function moveFormation(from: number, to: number) {
   if (to >= 0 && to < n) useEditor.setState({ current: to })
 }
 
+/** Puts everyone back where they stood in the formation before, undoing whatever was changed in this one. */
+export function matchPrevious(formation: number) {
+  edit(p => {
+    if (formation > 0) p.formations[formation].positions = stand(p.formations[formation - 1].positions)
+  })
+}
+
 export function resetLine(formation: number) {
   edit(p => {
-    p.formations[formation].positions = lineUp(p.dancers.map(d => d.id), p.stage)
+    // Props stay where they are; only people line up.
+    Object.assign(p.formations[formation].positions, lineUp(p.dancers.filter(isPerson).map(d => d.id), p.stage))
   })
 }

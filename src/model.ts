@@ -1,6 +1,6 @@
 // Positions are in metres: x from the centre line (left negative, audience view),
 // y from the front edge of the stage (upstage positive).
-export type Shape = 'circle' | 'square' | 'triangle'
+export type Shape = 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon'
 
 export interface Dancer {
   id: string
@@ -8,6 +8,8 @@ export interface Dancer {
   label: string
   color: string
   shape: Shape
+  /** Set on a prop (a box, a riser, a chair): its size in metres. Props sit in the dancer list so they move, animate and print like everyone else. */
+  prop?: { w: number; h: number }
 }
 
 export interface Position {
@@ -33,8 +35,14 @@ export interface Formation {
 export interface Stage {
   width: number
   depth: number
+  /** What lengths are shown in. Positions are stored in metres either way. */
   unit: 'm' | 'ft'
+  /** Metres between grid lines. */
   gridSize: number
+  /** Metres dancers snap to when dragged; 0 turns snapping off. Half a metre when not set. */
+  snap?: number
+  /** Extra floor markings on top of the centre line. */
+  marks?: 'quarters' | 'numbers'
 }
 
 export interface Project {
@@ -47,6 +55,12 @@ export interface Project {
   formations: Formation[]
   /** Tempo of the optional beat grid. */
   bpm: number
+  /** How lengths are shown and typed: seconds (the default), or counts at `bpm`. They are stored in seconds either way. */
+  timeUnit?: 'seconds' | 'counts'
+  /** Counts in one bar: 8 unless set, 6 for a waltz counted in sixes, and so on. */
+  countsPerBar?: number
+  /** Lengths, in seconds, a new formation starts with. */
+  defaults?: { hold: number; transition: number }
   /** Seconds into the timeline where beat one of the grid falls. */
   beatOffset?: number
   /** The song itself is stored beside the project, never inside it. */
@@ -56,7 +70,12 @@ export interface Project {
   updatedAt: number
 }
 
-export const DANCER_COLORS = ['#ffb000', '#ff7fb0', '#00c2c2', '#8fd14f', '#b79bff', '#ff8a4c', '#5aa9ff', '#17171a']
+export const DANCER_COLORS = ['#ffb000', '#ff7fb0', '#00c2c2', '#8fd14f', '#b79bff', '#ff8a4c', '#5aa9ff', '#17171a', '#e5484d', '#f5e050', '#9c6b3f', '#e8e6e1']
+export const PROP_COLOR = '#8a8f98'
+export const FT = 0.3048
+/** Metres in one of the stage's own units. */
+export const unitOf = (stage: Stage) => (stage.unit === 'ft' ? FT : 1)
+export const isPerson = (d: Dancer) => !d.prop
 /** Lighting colours a formation can take; the stage is washed in the current one. */
 export const GELS = [
   { name: 'Fire', hex: '#d63a1c' },
@@ -81,7 +100,16 @@ export function inkOn(hex: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? '#17171a' : '#ffffff'
 }
 
-const SHAPES: Shape[] = ['circle', 'square', 'triangle']
+export const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'diamond', 'hexagon']
+
+/** Corners of a mark of radius `r`, y pointing down; none for a circle. Shared by the stage drawing and the video. */
+export function shapePoints(shape: Shape, r: number): [number, number][] | null {
+  if (shape === 'square') return [[-r, -r], [r, -r], [r, r], [-r, r]]
+  if (shape === 'triangle') return [[0, -r * 1.15], [r * 1.08, r * 0.82], [-r * 1.08, r * 0.82]]
+  if (shape === 'diamond') return [[0, -r * 1.25], [r * 1.25, 0], [0, r * 1.25], [-r * 1.25, 0]]
+  if (shape === 'hexagon') return Array.from({ length: 6 }, (_, k) => [Math.cos((k * Math.PI) / 3) * r * 1.1, Math.sin((k * Math.PI) / 3) * r * 1.1])
+  return null
+}
 
 export const uid = () => crypto.randomUUID()
 
@@ -121,6 +149,27 @@ export function lineUp(ids: string[], stage: Stage, perRow = 10): Record<string,
 
 export const round = (n: number) => Math.round(n * 100) / 100
 
+type Timing = Pick<Project, 'bpm' | 'timeUnit'>
+
+/** A length in the routine's own unit: "4.00 s" or "8 counts". */
+export function span(p: Timing, secs: number): string {
+  if (p.timeUnit !== 'counts') return `${secs.toFixed(secs < 10 ? 2 : 1)} s`
+  const n = +((secs * p.bpm) / 60).toFixed(2)
+  return `${n} ${n === 1 ? 'count' : 'counts'}`
+}
+
+/** Rounds a length for storing. Counts keep finer precision, so 8 counts at an awkward tempo still reads back as 8. */
+export const tidy = (p: Timing, secs: number) => (p.timeUnit === 'counts' ? Math.round(secs * 1e4) / 1e4 : round(secs))
+
+/** How far outside the stage a dancer may stand, in metres. Less than the margin drawn around the stage, so nobody is ever out of sight. */
+export const WINGS = 1
+
+/** Puts `q` at `to`, pulled back inside the stage and its wings. */
+export function place(stage: Stage, q: Position, to: { x: number; y: number }) {
+  q.x = round(Math.max(-stage.width / 2 - WINGS, Math.min(stage.width / 2 + WINGS, to.x)))
+  q.y = round(Math.max(-WINGS, Math.min(stage.depth + WINGS, to.y)))
+}
+
 export function newProject(name: string, dancerCount: number, stage: Partial<Stage> = {}): Project {
   const s: Stage = { width: 10, depth: 8, unit: 'm', gridSize: 1, ...stage }
   const dancers = Array.from({ length: dancerCount }, (_, i) => newDancer(i))
@@ -136,6 +185,59 @@ export function newProject(name: string, dancerCount: number, stage: Partial<Sta
     createdAt: now,
     updatedAt: now,
   }
+}
+
+/** Lengths a new formation starts with: the routine's own, or 4 s and 2 s (8 and 4 counts when timing in counts). */
+export function newLengths(p: Project): { hold: number; transition: number } {
+  if (p.defaults) return p.defaults
+  const beat = p.timeUnit === 'counts' ? 60 / p.bpm : 0.5
+  return { hold: tidy(p, 8 * beat), transition: tidy(p, 4 * beat) }
+}
+
+export type Preset = 'line' | 'rows' | 'circle' | 'v' | 'pyramid' | 'block'
+type Point = { x: number; y: number }
+
+export const centroid = (pts: Point[]): Point => ({
+  x: pts.reduce((s, q) => s + q.x, 0) / (pts.length || 1),
+  y: pts.reduce((s, q) => s + q.y, 0) / (pts.length || 1),
+})
+
+/** Spots for `n` dancers in a named shape, `gap` metres apart, centred on 0,0. The pyramid and the V point at the audience. */
+export function presetShape(kind: Preset, n: number, gap = 1): Point[] {
+  const cols = Math.ceil(Math.sqrt(n))
+  const front = Math.ceil(n / 2)
+  const pts = Array.from({ length: n }, (_, i): Point => {
+    if (kind === 'line') return { x: i * gap, y: 0 }
+    if (kind === 'rows') return i < front ? { x: i * gap, y: 0 } : { x: (i - front + 0.5) * gap, y: gap }
+    if (kind === 'block') return { x: (i % cols) * gap, y: Math.floor(i / cols) * gap }
+    if (kind === 'circle') {
+      const r = Math.max(gap, (n * gap) / (2 * Math.PI))
+      return { x: Math.sin((i / n) * 2 * Math.PI) * r, y: -Math.cos((i / n) * 2 * Math.PI) * r }
+    }
+    if (kind === 'v') {
+      const k = Math.ceil(i / 2)
+      return { x: (i % 2 ? -1 : 1) * k * gap * 0.75, y: k * gap * 0.75 }
+    }
+    // Pyramid: rows of 1, 2, 3 … going upstage.
+    const row = Math.floor((Math.sqrt(8 * i + 1) - 1) / 2)
+    return { x: (i - (row * (row + 1)) / 2 - row / 2) * gap, y: row * gap * 0.85 }
+  })
+  const c = centroid(pts)
+  return pts.map(q => ({ x: round(q.x - c.x), y: round(q.y - c.y) }))
+}
+
+/** Pairs who come within `near` metres of each other on the way from `prev` to `cur`, closer than they stand at either end. */
+export function clashes(prev: Record<string, Position>, cur: Record<string, Position>, ids: string[], near = 0.5): [string, string][] {
+  const moving = ids.filter(id => prev[id] && cur[id] && !prev[id].offstage && !cur[id].offstage)
+  const at = (id: string, t: number) => along(prev[id], cur[id], prev[id].x === cur[id].x && prev[id].y === cur[id].y ? undefined : cur[id].via, t)
+  const gap = (a: string, b: string, t: number) => { const p = at(a, t), q = at(b, t); return Math.hypot(p.x - q.x, p.y - q.y) }
+  const out: [string, string][] = []
+  for (let i = 0; i < moving.length; i++) for (let j = i + 1; j < moving.length; j++) {
+    const [a, b] = [moving[i], moving[j]]
+    const ends = Math.min(gap(a, b, 0), gap(a, b, 1))
+    for (let k = 1; k < 20; k++) if (gap(a, b, k / 20) < Math.min(near, ends - 0.05)) { out.push([a, b]); break }
+  }
+  return out
 }
 
 /** How a formation is shown: its own name with "Formation N" beneath, or just "Formation N" when it has none. */
@@ -183,7 +285,9 @@ export function positionsAt(formations: Formation[], count: number): { index: nu
       for (const id in f.positions) {
         const a = prev[id] ?? f.positions[id]
         const b = f.positions[id]
-        positions[id] = { ...along(a, b, b.via, t), offstage: t < 0.5 ? a.offstage : b.offstage }
+        // A bend only means something on a path that goes somewhere; standing still stays still.
+        const via = a.x === b.x && a.y === b.y ? undefined : b.via
+        positions[id] = { ...along(a, b, via, t), offstage: t < 0.5 ? a.offstage : b.offstage }
       }
       return { index: i, moving: true, positions }
     }
@@ -215,8 +319,27 @@ export function parseProject(text: string): Project {
     p.formations.every((f: any) => f && typeof f.id === 'string' && num(f.hold) && num(f.transition) && f.positions && typeof f.positions === 'object' &&
       Object.values(f.positions).every((q: any) => q && num(q.x) && num(q.y) && (q.via === undefined || (q.via && num(q.via.x) && num(q.via.y)))))
   if (!ok) throw new Error('This file is not an Eight project, or it was made by a newer version.')
+  // Optional settings are kept only when they are sane; a zero grid would never finish drawing.
+  const pos = (n: unknown) => (num(n) && (n as number) > 0 ? (n as number) : undefined)
+  p.stage = { ...p.stage, gridSize: pos(p.stage.gridSize) ?? 1, snap: num(p.stage.snap) && p.stage.snap >= 0 ? p.stage.snap : undefined, unit: p.stage.unit === 'ft' ? 'ft' : 'm', marks: ['quarters', 'numbers'].includes(p.stage.marks) ? p.stage.marks : undefined }
+  p.countsPerBar = pos(p.countsPerBar) && Math.round(p.countsPerBar)
+  p.defaults = p.defaults && pos(p.defaults.hold) && num(p.defaults.transition) && p.defaults.transition >= 0 ? { hold: p.defaults.hold, transition: p.defaults.transition } : undefined
+  p.dancers = p.dancers.map((d: any) => ({ ...d, prop: d.prop && pos(d.prop.w) && pos(d.prop.h) ? { w: d.prop.w, h: d.prop.h } : undefined }))
   const now = Date.now()
   // A fresh id so an import never overwrites the project it was exported from.
   // The song does not travel inside the file, so an import starts without one.
-  return migrate({ ...p, audio: undefined, beatOffset: num(p.beatOffset) && p.beatOffset >= 0 ? p.beatOffset : undefined, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, stage: { unit: 'm', gridSize: 1, ...p.stage }, createdAt: now, updatedAt: now })
+  return migrate({ ...p, audio: undefined, timeUnit: p.timeUnit === 'counts' ? 'counts' : undefined, beatOffset: num(p.beatOffset) && p.beatOffset >= 0 ? p.beatOffset : undefined, id: uid(), bpm: num(p.bpm) && p.bpm > 0 ? p.bpm : 120, createdAt: now, updatedAt: now })
+}
+
+/** Reads a routine file, or a "Back up all" file holding several routines. */
+export function parseProjects(text: string): Project[] {
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return [parseProject(text)] // throws the readable message
+  }
+  if (!Array.isArray(data)) return [parseProject(text)]
+  if (!data.length) throw new Error('This backup file has no routines in it.')
+  return data.map(p => parseProject(JSON.stringify(p)))
 }

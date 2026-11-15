@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
-import { formationLabel, gelOf, inkOn, round, startTimes, totalTime, type Formation, type Project } from './model'
-import { edit } from './store'
+import { formationLabel, gelOf, inkOn, span, startTimes, tidy, totalTime, type Formation, type Project } from './model'
+import { addFormation, deleteFormation, edit, matchPrevious, moveFormation, resetLine } from './store'
 import { Icon } from './ui'
 
 const MIN_HOLD = 0.1
-const secs = (n: number) => `${n.toFixed(n < 10 ? 2 : 1)} s`
 
 type Edge = 'hold' | 'transition'
+type Snap = 'off' | 'count' | 'half' | 'bar' | 'second' | 'edge'
 type Trim = { i: number; edge: Edge; x0: number; from: number; value: number }
 
 interface Props {
@@ -24,13 +24,22 @@ interface Props {
   onSeek: (t: number) => void
   onToggle: () => void
   onAddFormation: () => void
+  /** Puts the playhead on the current formation after the formations themselves changed. */
+  onFollow: () => void
   onPickAudio: () => void
   onRemoveAudio: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onPickAudio, onRemoveAudio }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio }: Props) {
+  /** The right-click menu: which formation it is for and where it was opened. */
+  const [menu, setMenu] = useState<{ i: number; x: number; y: number } | null>(null)
   const [pps, setPps] = useState(48) // pixels per second
-  const [snap, setSnap] = useState(false)
+  const counts = project.timeUnit === 'counts'
+  const secs = (n: number) => span(project, n)
+  const [snap, setSnap] = useState<Snap>(counts ? 'count' : 'off')
+  // Timing in counts means working on the beat grid, so snapping comes on with it.
+  useEffect(() => setSnap(counts ? 'count' : 'off'), [counts])
+  const perBar = project.countsPerBar ?? 8
   const [view, setView] = useState({ left: 0, width: 800 })
   const scroller = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
@@ -41,7 +50,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
   const setTrim = (t: Trim | null) => { live.current = t; render(t) }
 
   // The divider inside a bar moves the split between moving in and holding, so the bar keeps its length.
-  const resize = (f: Formation, edge: Edge, v: number) => (edge === 'hold' ? { hold: v } : { transition: v, hold: round(f.transition + f.hold - v) })
+  const resize = (f: Formation, edge: Edge, v: number) => (edge === 'hold' ? { hold: v } : { transition: v, hold: tidy(project, f.transition + f.hold - v) })
   const beat = 60 / project.bpm
   const beatAt = project.beatOffset ?? 0
   const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, ...resize(f, trim.edge, trim.value) } : f)) : project.formations
@@ -90,12 +99,22 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     }
   }, [peaks, pps, view])
 
-  const snapped = (t: number) => (snap ? beatAt + Math.round((t - beatAt) / beat) * beat : t)
+  // Seconds between snap lines, or 0 when snapping is off or goes to edges instead of a grid.
+  const grid = { off: 0, edge: 0, count: beat, half: beat / 2, bar: beat * perBar, second: 1 }[snap]
+  const gridAt = snap === 'second' ? 0 : beatAt
+  /** Every place a formation starts moving, arrives or ends, and where the song ends. */
+  const edges = [...starts.flatMap((s, i) => [s - formations[i].transition, s, s + formations[i].hold]), project.audio?.duration ?? 0]
+  const snapped = (t: number, to = edges) => {
+    if (grid) return gridAt + Math.round((t - gridAt) / grid) * grid
+    if (snap !== 'edge') return t
+    const near = to.reduce((best, m) => (Math.abs(m - t) < Math.abs(best - t) ? m : best), Infinity)
+    return Math.abs(near - t) * pps <= 8 ? near : t
+  }
 
   // ---- Trimming: the right edge sets how long a formation holds, the divider how much of the bar is spent moving in. ----
   const edgeTime = (i: number, edge: Edge) => (edge === 'hold' ? starts[i] + formations[i].hold : starts[i])
-  const most = (i: number, edge: Edge) => (edge === 'hold' ? 600 : round(project.formations[i].transition + project.formations[i].hold - MIN_HOLD))
-  const limit = (i: number, edge: Edge, v: number) => round(Math.max(edge === 'hold' ? MIN_HOLD : 0, Math.min(most(i, edge), v)))
+  const most = (i: number, edge: Edge) => (edge === 'hold' ? 600 : tidy(project, project.formations[i].transition + project.formations[i].hold - MIN_HOLD))
+  const limit = (i: number, edge: Edge, v: number) => tidy(project, Math.max(edge === 'hold' ? MIN_HOLD : 0, Math.min(most(i, edge), v)))
   const commit = (i: number, edge: Edge, value: number) => {
     if (value !== project.formations[i][edge]) edit(p => { Object.assign(p.formations[i], resize(p.formations[i], edge, value)) })
   }
@@ -111,7 +130,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     if (!t) return
     const base = edgeTime(t.i, t.edge) - t.value // where this edge would sit at zero length
     const wanted = base + t.from + (e.clientX - t.x0) / pps
-    setTrim({ ...t, value: limit(t.i, t.edge, (e.altKey ? wanted : snapped(wanted)) - base) })
+    setTrim({ ...t, value: limit(t.i, t.edge, (e.altKey ? wanted : snapped(wanted, [time, project.audio?.duration ?? 0])) - base) })
   }
   const trimUp = () => {
     const t = live.current
@@ -124,7 +143,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     if (!dir) return
     e.preventDefault()
     e.stopPropagation()
-    commit(i, edge, limit(i, edge, project.formations[i][edge] + dir * (e.shiftKey ? 1 : 0.1)))
+    commit(i, edge, limit(i, edge, project.formations[i][edge] + dir * (counts ? (e.shiftKey ? perBar : 1) * beat : e.shiftKey ? 1 : 0.1)))
   }
   const handle = (i: number, edge: Edge) => (
     <span
@@ -162,7 +181,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     <footer className="deck">
       <div className="deck-bar">
         <button className="btn btn-play" onClick={onToggle} aria-label={playing ? 'Stop' : 'Play from the playhead'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
-        <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / 8) + 1}, count {(beatNow % 8) + 1}</span></p>
+        <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / perBar) + 1}, count {(beatNow % perBar) + 1}</span></p>
         <div className="deck-tools">
           <label className="check">Speed
             <select value={speed} onChange={e => onSpeed(Number(e.target.value))}>
@@ -170,7 +189,12 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
             </select>
           </label>
           <label className="check" title="Repeats the formation the playhead is in when you press Play"><input type="checkbox" checked={loop} onChange={e => onLoop(e.target.checked)} />Loop formation</label>
-          <label className="check"><input type="checkbox" checked={snap} onChange={e => setSnap(e.target.checked)} />Snap to beats</label>
+          <label className="check" title="What the playhead and formation edges jump to as you drag. Hold Alt while trimming to ignore it.">Snap to
+            <select value={snap} onChange={e => setSnap(e.target.value as Snap)}>
+              <option value="off">Nothing</option><option value="count">Counts</option><option value="half">Half counts</option><option value="bar">Bars of {perBar}</option>
+              <option value="second">Whole seconds</option><option value="edge">Formations and playhead</option>
+            </select>
+          </label>
           <span className="zoom" role="group" aria-label="Timeline zoom">
             <button className="btn btn-line" onClick={() => zoom(1 / 1.5)} aria-label="Zoom out"><Icon name="minus" /></button>
             <button className="btn btn-line" onClick={() => setPps(Math.max(4, Math.min(400, (view.width - 24) / (end + 1))))}>Fit</button>
@@ -184,7 +208,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
       </div>
 
       <div className="reel" ref={scroller} onScroll={e => setView({ left: e.currentTarget.scrollLeft, width: e.currentTarget.clientWidth })}>
-        <div className={`track${snap ? ' has-beats' : ''}`} ref={track} style={{ width, '--beat': `${beat * pps}px`, '--beat-at': `${beatAt * pps}px` } as CSSProperties}>
+        <div className={`track${grid ? ' has-beats' : ''}`} ref={track} style={{ width, '--beat': `${grid * pps}px`, '--bar': `${(snap === 'second' ? 10 : beat * perBar) * pps}px`, '--beat-at': `${gridAt * pps}px` } as CSSProperties}>
           <div className="ruler" onPointerDown={scrub} onPointerMove={scrub} title="Click or drag to move the playhead">
             {ticks.map(t => <span key={t} style={{ left: t * pps }}>{step < 1 ? clock(t) : clock(t).slice(0, -3)}</span>)}
           </div>
@@ -196,7 +220,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
               const label = formationLabel(f, i)
               return (
                 <li key={f.id}>
-                  <div className={`clip${i === index ? ' is-current' : ''}`} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
+                  <div className={`clip${i === index ? ' is-current' : ''}`} onContextMenu={e => { e.preventDefault(); if (!playing) { onSeek(starts[i]); setMenu({ i, x: e.clientX, y: e.clientY }) } }} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
                     <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])}>
                       <b>{label.title}</b>
                       {label.sub && <i>{label.sub}</i>}
@@ -227,6 +251,38 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
           <span className="playhead" style={{ left: time * pps }} aria-hidden="true" />
         </div>
       </div>
+      {menu && (() => {
+        const { i } = menu
+        const n = project.formations.length
+        const item = (label: string, run: () => void, off = false, danger = false) => (
+          <button role="menuitem" className={danger ? 'btn-danger' : ''} disabled={off} onClick={() => { setMenu(null); run(); onFollow() }}>{label}</button>
+        )
+        return (
+          <>
+            <div className="ctx-shade" onPointerDown={() => setMenu(null)} onContextMenu={e => { e.preventDefault(); setMenu(null) }} />
+            {/* The timeline sits at the bottom of the window, so the menu opens upwards from the pointer. */}
+            <div className="menu-list ctx" role="menu" aria-label={`Actions for ${formationLabel(project.formations[i], i).title}`}
+              style={{ left: Math.max(8, Math.min(menu.x, innerWidth - 290)), bottom: innerHeight - menu.y }}
+              ref={el => { if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>('button:not(:disabled)')?.focus() }}
+              onKeyDown={e => {
+                e.stopPropagation()
+                if (e.key === 'Escape') return setMenu(null)
+                const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+                if (!dir) return
+                e.preventDefault()
+                const all = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled)')]
+                all[(all.indexOf(document.activeElement as HTMLElement) + dir + all.length) % all.length]?.focus()
+              }}>
+              {item('Duplicate', () => addFormation(i))}
+              {item(i ? `Reset positions to ${formationLabel(project.formations[i - 1], i - 1).title}` : 'Reset positions to the previous formation', () => matchPrevious(i), i === 0)}
+              {item('Line everyone up', () => resetLine(i))}
+              {item('Move earlier', () => moveFormation(i, i - 1), i === 0)}
+              {item('Move later', () => moveFormation(i, i + 1), i === n - 1)}
+              {item('Delete', () => deleteFormation(i), n === 1, true)}
+            </div>
+          </>
+        )
+      })()}
     </footer>
   )
 }

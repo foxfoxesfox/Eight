@@ -66,7 +66,7 @@ export function Landing() {
           <p>Eight takes its name from the dance eight-count: a simple structure for bringing movement together. We bring that same clarity to planning formations, helping you see every position, shape every transition, and keep everyone on the same count.</p>
           <dl>
             <div><dt>Yours to keep</dt><dd>Routines are saved in your browser on your device. Export any of them as a file to back up or send to your crew.</dd></div>
-            <div><dt>Built in counts</dt><dd>Each formation holds for a number of counts and takes a number of counts to reach. Set the tempo and press play.</dd></div>
+            <div><dt>Built in counts</dt><dd>Time each formation in counts on the beat, or in seconds against the song. Set the tempo and press play.</dd></div>
             <div><dt>Timed to your music</dt><dd>Add a song, see its waveform, and stretch each formation to what you hear. Share links and live co-editing are planned and not here yet.</dd></div>
           </dl>
         </section>

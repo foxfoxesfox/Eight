@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { deleteProject, listProjects, saveProject } from './db'
-import { gelOf, newProject, parseProject, uid, type Project } from './model'
+import { gelOf, newProject, parseProjects, uid, type Project } from './model'
 import { StageView } from './Stage'
 import { download, go, Icon, ThemeToggle } from './ui'
 
@@ -30,9 +30,10 @@ export function Projects() {
   const importFile = async (file?: File) => {
     if (!file) return
     try {
-      const p = parseProject(await file.text())
-      await saveProject(p)
-      go(`#/r/${p.id}`)
+      const list = parseProjects(await file.text())
+      await Promise.all(list.map(saveProject))
+      if (list.length === 1) go(`#/r/${list[0].id}`)
+      else refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That file could not be imported.')
     }

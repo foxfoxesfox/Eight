@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('./db', () => ({ saveProject: () => Promise.resolve() }))
 
-import { formationLabel, labelFor, newProject, parseProject, positionsAt, startTimes, totalTime } from './model'
-import { addDancer, addFormation, moveDancers, removeDancers, useEditor } from './store'
+import { clashes, formationLabel, labelFor, presetShape, newProject, parseProject, parseProjects, positionsAt, span, startTimes, tidy, totalTime } from './model'
+import { addDancer, addFormation, matchPrevious, moveDancers, removeDancers, resizeStage, useEditor } from './store'
 
 describe('model', () => {
   it('labels stay unique past 26 dancers', () => {
@@ -33,6 +33,30 @@ describe('model', () => {
     expect(positionsAt(p.formations, 1)).toMatchObject({ index: 0, moving: true, positions: { [id]: { x: 0, y: 0 } } })
   })
 
+  it('shows lengths in seconds or in counts at the tempo', () => {
+    expect(span({ bpm: 120 }, 4)).toBe('4.00 s')
+    expect(span({ bpm: 120, timeUnit: 'counts' }, 4)).toBe('8 counts')
+    // 8 counts at 130 BPM is not a round number of seconds, and still reads back as 8.
+    const odd = { bpm: 130, timeUnit: 'counts' } as const
+    expect(span(odd, tidy(odd, (8 * 60) / 130))).toBe('8 counts')
+    expect(parseProject(JSON.stringify({ ...newProject('x', 1), timeUnit: 'counts' })).timeUnit).toBe('counts')
+  })
+
+  it('builds preset shapes around their own centre and spots dancers who would collide', () => {
+    for (const kind of ['line', 'rows', 'block', 'circle', 'v', 'pyramid'] as const) {
+      const pts = presetShape(kind, 7)
+      expect(pts).toHaveLength(7)
+      expect(new Set(pts.map(q => `${q.x},${q.y}`)).size).toBe(7) // nobody shares a spot
+      expect(Math.abs(pts.reduce((s, q) => s + q.x, 0))).toBeLessThan(0.05)
+    }
+    expect(presetShape('line', 3, 2).map(q => q.x)).toEqual([-2, 0, 2])
+    // Two dancers swapping places walk through each other; bending one path clears it; standing close is not a clash.
+    const prev = { a: { x: -2, y: 2 }, b: { x: 2, y: 2 }, c: { x: 0, y: 6 }, d: { x: 0.4, y: 6 } }
+    const cur = { a: { x: 2, y: 2 }, b: { x: -2, y: 2 }, c: { x: 0, y: 6 }, d: { x: 0.4, y: 6 } }
+    expect(clashes(prev, cur, ['a', 'b', 'c', 'd'])).toEqual([['a', 'b']])
+    expect(clashes(prev, { ...cur, b: { x: -2, y: 2, via: { x: 0, y: 6 } } }, ['a', 'b'])).toEqual([])
+  })
+
   it('names formations by their own name, numbering them by position', () => {
     const f = newProject('x', 1).formations[0]
     expect(formationLabel(f, 2)).toEqual({ title: 'Formation 3', sub: '' })
@@ -53,6 +77,10 @@ describe('model', () => {
     const bad = structuredClone(p)
     ;(bad.formations[0].positions[p.dancers[0].id] as any).x = 'left'
     expect(() => parseProject(JSON.stringify(bad))).toThrow()
+    // A "Back up all" file is a list of routines and comes back as one.
+    expect(parseProjects(JSON.stringify([p, p])).map(q => q.name)).toEqual(['Opener', 'Opener'])
+    expect(parseProjects(JSON.stringify(p))).toHaveLength(1)
+    expect(() => parseProjects('[]')).toThrow(/no routines/)
   })
 })
 
@@ -65,8 +93,8 @@ describe('editor store', () => {
     addFormation()
     expect(useEditor.getState().current).toBe(1)
     moveDancers(1, { [a]: { x: 99, y: 3 } })
-    expect(useEditor.getState().project!.formations[1].positions[a]).toEqual({ x: 7, y: 3 }) // clamped to the wings
-    expect(useEditor.getState().project!.formations[0].positions[a].x).not.toBe(7)
+    expect(useEditor.getState().project!.formations[1].positions[a]).toEqual({ x: 6, y: 3 }) // clamped to the wings
+    expect(useEditor.getState().project!.formations[0].positions[a].x).not.toBe(6)
 
     addDancer()
     const s = useEditor.getState().project!
@@ -84,5 +112,31 @@ describe('editor store', () => {
     expect(useEditor.getState().project!.dancers).toHaveLength(2)
     useEditor.getState().redo()
     expect(useEditor.getState().project!.formations).toHaveLength(2)
+
+    // A new formation copies positions but not path bends, and a dancer standing still ignores a stray bend.
+    useEditor.getState().edit(q => { q.formations[1].positions[a] = { x: 2, y: 2, via: { x: 9, y: 9 } } })
+    useEditor.getState().setCurrent(1)
+    addFormation()
+    const fs = structuredClone(useEditor.getState().project!.formations)
+    expect(fs[2].positions[a]).toEqual({ x: 2, y: 2 })
+    fs[2].positions[a].via = { x: 9, y: 9 }
+    expect(positionsAt(fs, startTimes(fs)[2] - 1).positions[a]).toMatchObject({ x: 2, y: 2 })
+
+    // Resetting a formation puts everyone back where they stood in the one before, in one undo step.
+    moveDancers(2, { [a]: { x: -3, y: 5 } })
+    matchPrevious(2)
+    expect(useEditor.getState().project!.formations[2].positions[a]).toEqual({ x: 2, y: 2 })
+    useEditor.getState().undo()
+    expect(useEditor.getState().project!.formations[2].positions[a]).toEqual({ x: -3, y: 5 })
+
+    // A dancer added after one was removed gets a letter nobody else has.
+    removeDancers([a])
+    addDancer()
+    const labels = useEditor.getState().project!.dancers.map(d => d.label)
+    expect(new Set(labels).size).toBe(labels.length)
+
+    // Shrinking the stage pulls in anyone it would leave out of sight.
+    resizeStage({ width: 4 })
+    expect(useEditor.getState().project!.formations.every(f => Object.values(f.positions).every(q => Math.abs(q.x) <= 3))).toBe(true)
   })
 })

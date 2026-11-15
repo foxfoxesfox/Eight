@@ -130,5 +130,6 @@ export function download(name: string, data: BlobPart, type = 'application/json'
   a.href = URL.createObjectURL(new Blob([data], { type }))
   a.download = name
   a.click()
-  URL.revokeObjectURL(a.href)
+  // Not at once: some browsers drop a download whose address is withdrawn before they have started reading it.
+  setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
 }

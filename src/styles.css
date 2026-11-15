@@ -97,7 +97,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Fields */
 .field { display: grid; gap: 4px; min-width: 0; }
-.field > span:first-child, .chips legend, .readout span { font-size: 12.5px; font-weight: 600; color: var(--mute); }
+.field > span:first-child, .chips legend, .arrange legend, .readout span { font-size: 12.5px; font-weight: 600; color: var(--mute); }
 .field-box { position: relative; display: block; }
 .field-box em { position: absolute; right: 10px; top: 50%; translate: 0 -50%; font-style: normal; font-size: 12.5px; color: var(--mute); pointer-events: none; }
 .field-box:has(em) input { padding-right: 58px; }
@@ -155,6 +155,20 @@ input[type='number'] { appearance: textfield; }
 .is-live .dancer:active { cursor: grabbing; }
 .dancer-body > * { stroke: #fff; stroke-width: 0.07; paint-order: stroke; }
 .dancer-halo { fill: none; }
+.dancer.is-off { opacity: 0.35; }
+.dancer.is-clash .dancer-halo { stroke: var(--bad); stroke-width: 0.09; }
+.dancer.is-prop .dancer-body > * { stroke-width: 0.04; }
+.stage-quarter { opacity: 0.55; }
+.stage-number { font-size: 0.24px; font-weight: 700; fill: var(--ink); }
+.warn { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--bad); color: var(--bad); font-size: 13.5px; font-weight: 600; }
+.arrange { display: flex; flex-wrap: wrap; gap: 6px; }
+.arrange legend { margin-bottom: 6px; }
+.floor-tool label { display: flex; align-items: center; gap: 8px; }
+.floor-tool .btn { padding: 5px 10px; font-size: 13px; }
+.floor-tool .btn[aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.arrange .btn { padding: 5px 10px; font-size: 13px; }
+.toast.is-info { background: var(--white); border-color: var(--line); color: var(--ink); }
+.chips input[type='color'] { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .dancer.is-selected .dancer-halo { fill: #ffffffcc; stroke: var(--ink); stroke-width: 0.07; }
 .dancer:focus-visible .dancer-halo { stroke: var(--ink); stroke-width: 0.07; stroke-dasharray: 0.14 0.1; }
 
@@ -162,8 +176,8 @@ input[type='number'] { appearance: textfield; }
 .deck { background: var(--paper); border-top: 1px solid var(--line); padding: 12px 20px 16px; }
 .deck-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
 .deck-now { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
-.deck-now strong { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deck-now span { color: var(--mute); white-space: nowrap; }
+.deck-now strong { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; flex: none; }
+.deck-now span { color: var(--mute); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .deck-tools { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .deck-tools .btn { padding: 6px 12px; }
 .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
@@ -174,10 +188,10 @@ input[type='number'] { appearance: textfield; }
 .zoom .btn:last-child { border-radius: 0 999px 999px 0; }
 .reel { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
 .track { position: relative; height: 182px; }
-/* Beat grid: a faint line per beat, a stronger one every eight. */
+/* Snap grid: a faint line per step, a stronger one every bar (every ten seconds when snapping to seconds). */
 .track.has-beats {
   background-position: var(--beat-at) 0;
-  background-image: repeating-linear-gradient(90deg, #17171a3d 0 1px, transparent 1px calc(var(--beat) * 8)), repeating-linear-gradient(90deg, #17171a17 0 1px, transparent 1px var(--beat));
+  background-image: repeating-linear-gradient(90deg, #17171a3d 0 1px, transparent 1px var(--bar)), repeating-linear-gradient(90deg, #17171a17 0 1px, transparent 1px var(--beat));
 }
 .ruler { position: relative; height: 26px; background: var(--paper); border-bottom: 1px solid var(--line); cursor: ew-resize; touch-action: none; user-select: none; }
 .ruler span { position: absolute; top: 0; bottom: 0; padding: 5px 0 0 5px; border-left: 1px solid #8f897e; font-size: 11.5px; color: var(--mute); pointer-events: none; }
@@ -292,6 +306,10 @@ input[type='number'] { appearance: textfield; }
 }
 .menu-list > * { padding: 9px 12px; border: 0; border-radius: 6px; background: none; color: inherit; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
 .menu-list > *:hover { background: var(--paper); }
+.menu-list > :disabled { opacity: 0.4; cursor: default; background: none; }
+.menu-list > .btn-danger { color: var(--bad); }
+.ctx-shade { position: fixed; inset: 0; z-index: 19; }
+.menu-list.ctx { position: fixed; top: auto; right: auto; }
 .menu-list :focus-visible { outline-color: var(--gel); }
 
 /* Print sheets */
@@ -349,3 +367,4 @@ input[type='number'] { appearance: textfield; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
 }
+.toast a { color: inherit; }

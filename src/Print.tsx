@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { clock } from './audio'
 import { loadProject } from './db'
-import { formationLabel, gelName, gelOf, startTimes, type Project } from './model'
+import { formationLabel, gelName, gelOf, span, startTimes, type Project } from './model'
 import { savePdf } from './pdf'
 import { MarkIcon, StageView } from './Stage'
 import { Icon, ThemeToggle } from './ui'
@@ -34,7 +34,7 @@ export function PrintView({ id }: { id: string }) {
   const sheets = formations.map((f, i) => {
     const label = formationLabel(f, i)
     const gel = gelOf(f, i)
-    const timing = `in formation at ${clock(starts[i])} for ${f.hold.toFixed(2)} s${f.transition > 0 ? `, after ${f.transition.toFixed(2)} s moving in` : ''}`
+    const timing = `in formation at ${clock(starts[i])} for ${span(project, f.hold)}${f.transition > 0 ? `, after ${span(project, f.transition)} moving in` : ''}`
     return { f, i, gel, label, meta: [label.sub, project.name, gelName(gel), timing].filter(Boolean).join(' · ') }
   })
 

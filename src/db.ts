@@ -21,4 +21,3 @@ export const deleteProject = (id: string) => Promise.all([db.projects.delete(id)
 
 export const loadAudio = (id: string) => db.audio.get(id).then(a => a?.blob)
 export const saveAudio = (id: string, blob: Blob) => db.audio.put({ id, blob })
-export const deleteAudio = (id: string) => db.audio.delete(id)
