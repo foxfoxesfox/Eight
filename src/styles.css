@@ -129,7 +129,7 @@ input[type='number'] { appearance: textfield; }
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 5px 8px; border: 0; border-radius: 8px;
   background: transparent; text-align: left; cursor: pointer; font-weight: 500;
 }
-.dancer-list button:hover:not(:disabled) { background: color-mix(in srgb, currentColor 8%, transparent); }
+.dancer-list button:hover:not(:disabled):not(.is-selected) { background: color-mix(in srgb, currentColor 8%, transparent); }
 .dancer-list button.is-selected { background: var(--ink); color: var(--paper); }
 .dancer-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mark-icon { width: 28px; height: 28px; flex: none; }
