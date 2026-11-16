@@ -169,7 +169,7 @@ Flat by default. Depth comes from tone: ink bar over paper rails over the ground
 
 ## Shapes
 
-Buttons are full pills. Inputs and list rows use 8px corners; panels 12px. Formation bars have the swatch shape: nearly square on top (4px) and rounded underneath (12px). Dancers are circles, rounded squares or triangles with a white ring, so shape backs up colour.
+Buttons are full pills. Inputs and list rows use 8px corners; panels 12px. Formation bars have the swatch shape: nearly square on top (4px) and rounded underneath (12px). Dancers are circles, rounded squares, triangles, diamonds or hexagons with a white ring, so shape backs up colour. Props are plain rounded slabs in a neutral grey, drawn under the dancers.
 
 ## Components
 
@@ -189,6 +189,14 @@ Buttons are full pills. Inputs and list rows use 8px corners; panels 12px. Forma
 
 ### Formation bar
 - One bar per formation in its lighting colour, with its number and name on top. Along the bottom, a strip filled at 32% of the text colour shows the time spent moving in; a solid knob at the strip's end is the slider. A grip on the bar's right edge changes the total length. The current bar gets a 3px ink outline inside a white inner ring.
+
+### Windows and menus
+- **Export window:** a centred modal on the white surface with 12px corners and the menu shadow, over a dimmed page. Choices are bordered rows with a radio, a bold title and one line of plain explanation; the chosen row gets an ink border. Options for a choice appear in a paper panel beneath it, only when that choice is selected.
+- **Formation menu:** right-clicking a formation bar opens a floating menu in the menu style, upwards from the pointer. Destructive items use the bad colour; unavailable ones are dimmed, not hidden.
+- **Messages:** errors use the bordered error toast; neutral news (a finished video, a file with no waveform) uses the same shape in white with a line border.
+
+### Video beside the stage
+- A routine's video shares the stage area half and half, on black with 8px corners. It carries no controls of its own: Play, the playhead and speed drive it.
 
 ### Stage
 - Pale wash of the current colour, grid at 24% of it, dashed centre line and a 0.07m outline in the full colour. Selected dancers get a white halo ringed in ink. Previous positions are dashed ghosts joined by dashed ink paths; a white handle on a selected dancer's path bends it.

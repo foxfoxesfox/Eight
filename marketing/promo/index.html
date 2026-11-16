@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Eight promo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Figtree"; src: url("fonts/figtree.woff2") format("woff2"); font-weight: 300 900; font-display: block; }
+      :root { --ink: #17171a; --paper: #f4f2ee; --mute: #b5b0a6; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--ink); color: var(--paper); font-family: "Figtree", system-ui, sans-serif; }
+      .clip { position: absolute; inset: 0; }
+      .layer { position: absolute; inset: 0; }
+
+      /* The light behind the stage: one blurred disc that takes the current formation's colour. */
+      #glow { position: absolute; left: 140px; top: 600px; width: 800px; height: 800px; border-radius: 50%; background: #d63a1c; opacity: 0.55; filter: blur(150px); }
+
+      #mark { position: absolute; left: 72px; top: 92px; font-size: 68px; font-weight: 800; letter-spacing: -0.04em; }
+      #kind { position: absolute; right: 72px; top: 122px; font-size: 30px; font-weight: 600; color: var(--mute); }
+
+      .say { position: absolute; left: 72px; right: 72px; top: 250px; height: 330px; display: flex; flex-direction: column; justify-content: flex-end; }
+      .say p { display: block; width: 100%; font-weight: 800; letter-spacing: -0.04em; line-height: 0.96; }
+      #tag p { font-size: 138px; }
+      .cap p { font-size: 104px; }
+
+      #stage { position: absolute; left: 60px; top: 640px; width: 960px; height: 768px; border-radius: 10px; background-color: #f6dcd5; border: 9px solid #d63a1c;
+        background-image: linear-gradient(#17171a1f 2px, transparent 2px), linear-gradient(90deg, #17171a1f 2px, transparent 2px); background-size: 96px 96px; background-position: -10px -10px; }
+      #centre { position: absolute; left: 470px; top: 0; width: 0; height: 100%; border-left: 4px dashed #17171a66; }
+      .dancer { position: absolute; width: 76px; height: 76px; border-radius: 50%; border: 6px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; }
+      #aud { position: absolute; left: 0; right: 0; top: 1432px; text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 0.08em; color: var(--paper); }
+
+      #reel { position: absolute; left: 60px; top: 1500px; width: 960px; height: 132px; display: flex; gap: 8px; }
+      .bar { position: relative; flex: 1; border-radius: 6px 6px 18px 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+      .bar-n { font-size: 24px; font-weight: 700; opacity: 0.85; font-variant-numeric: tabular-nums; }
+      .bar-name { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; }
+      .bar-ring { position: absolute; inset: 0; border-radius: inherit; border: 5px solid var(--paper); }
+      #head { position: absolute; left: 58px; top: 1482px; width: 5px; height: 168px; background: var(--paper); }
+      #head-cap { position: absolute; left: -12px; top: 0; width: 29px; height: 29px; border-radius: 6px 6px 14px 14px; background: #d63a1c; border: 4px solid var(--paper); }
+
+      #counts { position: absolute; left: 60px; top: 1694px; width: 960px; height: 104px; display: grid; grid-template-columns: repeat(8, 1fr); align-items: center; }
+      .count { text-align: center; font-size: 60px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--mute); }
+      #beat { position: absolute; left: 60px; top: 1694px; width: 120px; height: 104px; border-radius: 6px 6px 18px 18px; border: 5px solid var(--paper); }
+
+      #end-ground { position: absolute; inset: 0; background: var(--ink); }
+      #end-glow { position: absolute; left: 90px; top: 520px; width: 900px; height: 900px; border-radius: 50%; background: #3a22b8; opacity: 0.5; filter: blur(170px); }
+      #end-copy { position: absolute; left: 72px; right: 72px; top: 560px; display: flex; flex-direction: column; }
+      #end-mark { display: block; width: 100%; font-size: 300px; font-weight: 800; letter-spacing: -0.05em; line-height: 0.9; }
+      #end-tag { display: block; width: 100%; margin-top: 44px; font-size: 92px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
+      #end-free { display: block; width: 100%; margin-top: 40px; font-size: 46px; font-weight: 600; line-height: 1.25; color: var(--mute); }
+      #end-sw { position: absolute; left: 72px; right: 72px; top: 1500px; height: 132px; display: flex; gap: 8px; }
+      .sw { display: block; flex: 1; height: 100%; border-radius: 6px 6px 18px 18px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1080" data-height="1920">
+      <section id="film" class="clip" data-start="0" data-duration="16.4" data-track-index="0">
+        <div id="film-inner" class="layer">
+          <div id="glow"></div>
+          <div id="mark">Eight</div>
+          <div id="kind">Free formation planner</div>
+
+          <div class="say" id="tag"><p id="tag1">Every dancer.</p><p id="tag2">Every count.</p></div>
+          <div class="say cap" id="cap1"><p>Plan every formation.</p></div>
+          <div class="say cap" id="cap2"><p>Time it to your music.</p></div>
+          <div class="say cap" id="cap3"><p>Watch it before rehearsal.</p></div>
+
+          <div id="stage"><div id="centre"></div><div class="dancer" id="d0" style="left:106px;top:346px;background:#ffb000;color:#17171a">A</div><div class="dancer" id="d1" style="left:202px;top:346px;background:#ff7fb0;color:#17171a">B</div><div class="dancer" id="d2" style="left:298px;top:346px;background:#00c2c2;color:#17171a">C</div><div class="dancer" id="d3" style="left:394px;top:346px;background:#8fd14f;color:#17171a">D</div><div class="dancer" id="d4" style="left:490px;top:346px;background:#b79bff;color:#17171a">E</div><div class="dancer" id="d5" style="left:586px;top:346px;background:#ff8a4c;color:#17171a">F</div><div class="dancer" id="d6" style="left:682px;top:346px;background:#5aa9ff;color:#17171a">G</div><div class="dancer" id="d7" style="left:778px;top:346px;background:#17171a;color:#fff">H</div></div>
+          <div id="aud">AUDIENCE</div>
+
+          <div id="reel"><div class="bar" id="bar0" style="background:#d63a1c;color:#fff"><span class="bar-n">01</span><span class="bar-name">Opening line</span><span class="bar-ring" id="ring0"></span></div><div class="bar" id="bar1" style="background:#3a22b8;color:#fff"><span class="bar-n">02</span><span class="bar-name">The point</span><span class="bar-ring" id="ring1"></span></div><div class="bar" id="bar2" style="background:#007f80;color:#fff"><span class="bar-n">03</span><span class="bar-name">Two rows</span><span class="bar-ring" id="ring2"></span></div><div class="bar" id="bar3" style="background:#cf2468;color:#fff"><span class="bar-n">04</span><span class="bar-name">Circle</span><span class="bar-ring" id="ring3"></span></div></div>
+          <div id="head"><div id="head-cap"></div></div>
+
+          <div id="counts"><span class="count">1</span><span class="count">2</span><span class="count">3</span><span class="count">4</span><span class="count">5</span><span class="count">6</span><span class="count">7</span><span class="count">8</span></div>
+          <div id="beat"></div>
+        </div>
+      </section>
+
+      <section id="end" class="clip" data-start="15.6" data-duration="4.4" data-track-index="1">
+        <div id="end-inner" class="layer">
+          <div id="end-ground"></div>
+          <div id="end-glow"></div>
+          <div id="end-copy">
+            <div id="end-mark">Eight</div>
+            <div id="end-tag">Every dancer. Every count.</div>
+            <div id="end-free">Free in your browser. No account needed.</div>
+          </div>
+          <div id="end-sw"><span class="sw" style="background:#d63a1c"></span><span class="sw" style="background:#3a22b8"></span><span class="sw" style="background:#007f80"></span><span class="sw" style="background:#cf2468"></span><span class="sw" style="background:#ffb000"></span></div>
+        </div>
+      </section>
+    </div>
+    <script>
+      const MOVES = {"line": [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], "point": [[48, 240], [48, 96], [48, -48], [48, -192], [48, -48], [48, 96], [48, 240], [-336, 96]], "rows": [[48, 144], [144, 144], [240, 144], [336, 144], [-336, -144], [-240, -144], [-144, -144], [-48, -144]], "circle": [[96, 0], [67, -173], [144, -240], [221, -173], [192, 0], [29, 173], [-240, 240], [-509, 173]]};
+      const GELS = ["#d63a1c", "#3a22b8", "#007f80", "#cf2468"];
+      const WASH = ["#f6dcd5", "#e1dcf5", "#d6ecec", "#f7dbe6"]; // each gel at about 15% over white, as the app tints its stage
+      const BAR = 3.6; // seconds per formation bar: eight counts at 0.45 s
+      const T0 = 1.2; // when the playhead starts
+      const tl = gsap.timeline({ paused: true });
+
+      // Open: the frame assembles around the stage.
+      tl.fromTo("#mark", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 0.05);
+      tl.fromTo("#kind", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 0.25);
+      tl.fromTo("#glow", { opacity: 0, scale: 0.7 }, { opacity: 0.55, scale: 1, duration: 1.1, ease: "power2.out" }, 0.1);
+      tl.fromTo("#stage", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.7, ease: "power3.out" }, 0.15);
+      tl.fromTo("#tag1", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.55, ease: "power4.out" }, 0.3);
+      tl.fromTo("#tag2", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.55, ease: "power4.out" }, 0.55);
+      tl.fromTo(".dancer", { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out", stagger: 0.05 }, 0.7);
+      tl.fromTo("#aud", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.9);
+      tl.fromTo(".bar", { opacity: 0, y: 46 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.07 }, 0.75);
+      tl.fromTo("#head", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.0);
+      tl.fromTo(".count", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", stagger: 0.03 }, 0.9);
+      tl.fromTo("#beat", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 1.1);
+      tl.set(["#ring1", "#ring2", "#ring3"], { opacity: 0 }, 0);
+
+      // The playhead crosses one bar every eight counts, and the count marker hops with it.
+      for (let k = 0; k < 4; k++) {
+        tl.fromTo("#head", { x: k * 242 }, { x: (k + 1) * 242 - (k === 3 ? 8 : 0), duration: BAR, ease: "none" }, T0 + k * BAR);
+        for (let c = 0; c < 8; c++) tl.set("#beat", { x: c * 120 }, T0 + k * BAR + c * (BAR / 8));
+      }
+
+      // Each time the playhead enters a bar, everyone travels to that formation and the light changes with it.
+      const names = ["line", "point", "rows", "circle"];
+      const caps = ["#tag", "#cap1", "#cap2", "#cap3"];
+      tl.set(["#cap1", "#cap2", "#cap3"], { opacity: 0 }, 0);
+      for (let k = 1; k < 4; k++) {
+        const at = T0 + k * BAR;
+        MOVES[names[k]].forEach((m, i) => tl.to("#d" + i, { x: m[0], y: m[1], duration: 1.5, ease: "power2.inOut" }, at - 0.75 + i * 0.03));
+        tl.to("#stage", { backgroundColor: WASH[k], borderColor: GELS[k], duration: 0.7, ease: "power1.inOut" }, at - 0.35);
+        tl.to(["#glow", "#head-cap"], { backgroundColor: GELS[k], duration: 0.7, ease: "power1.inOut" }, at - 0.35);
+        tl.to("#ring" + (k - 1), { opacity: 0, duration: 0.2 }, at - 0.1);
+        tl.to("#ring" + k, { opacity: 1, duration: 0.2 }, at - 0.1);
+        // Words: the old line leaves upward a little faster than the new one arrives.
+        tl.to(caps[k - 1], { opacity: 0, y: -40, duration: 0.3, ease: "power2.in" }, at - 1.5);
+        tl.fromTo(caps[k], { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.5, ease: "power4.out" }, at - 1.2);
+      }
+      // The light breathes slowly the whole time.
+      tl.to("#glow", { scale: 1.1, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: 5 }, 1.3);
+
+      // Close: the working view gives way to the name.
+      tl.fromTo("#end-ground", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.inOut" }, 15.6);
+      tl.fromTo("#end-glow", { opacity: 0, scale: 0.8 }, { opacity: 0.5, scale: 1, duration: 1.2, ease: "power2.out" }, 15.8);
+      tl.to("#end-glow", { scale: 1.08, duration: 2.6, ease: "sine.inOut" }, 17.0);
+      tl.fromTo("#end-mark", { opacity: 0, y: 90 }, { opacity: 1, y: 0, duration: 0.7, ease: "power4.out" }, 16.0);
+      tl.fromTo("#end-tag", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 16.35);
+      tl.fromTo("#end-free", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 16.8);
+      tl.fromTo(".sw", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.08 }, 16.6);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

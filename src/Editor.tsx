@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { clock, MAX_AUDIO_BYTES, readAudio } from './audio'
-import { loadAudio, loadProject, saveAudio, saveProject } from './db'
+import { clock, MAX_AUDIO_BYTES, MAX_WAVEFORM_BYTES, readAudio, videoLength } from './audio'
+import { loadAudio, loadProject, loadWave, saveAudio, saveProject, saveWave } from './db'
 import { centroid, clashes, DANCER_COLORS, formationLabel, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
 import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, moveFormation, removeDancers, resizeStage, useEditor } from './store'
 import { describe, MarkIcon, StageView, type PathMode } from './Stage'
@@ -48,7 +48,13 @@ function Workspace({ project }: { project: Project }) {
   const [time, setTime] = useState(0)
   const [playing, setPlaying] = useState(false)
   const timeRef = useRef(0)
-  const song = useRef<HTMLAudioElement | null>(null)
+  // The routine's song, or its video: either way the element that makes the sound and keeps the time.
+  const song = useRef<HTMLMediaElement | null>(null)
+  /** Where a video is shown, beside the stage. */
+  const screen = useRef<HTMLDivElement>(null)
+  const [hasVideo, setHasVideo] = useState(false)
+  const [showVideo, setShowVideo] = useState(true)
+  const [mirrored, setMirrored] = useState(false)
   const [peaks, setPeaks] = useState<Float32Array | null>(null)
   const [audioMissing, setAudioMissing] = useState(false)
   /** Peaks of a song added a moment ago, so it is not decoded a second time. */
@@ -56,7 +62,11 @@ function Workspace({ project }: { project: Project }) {
   const [songRev, setSongRev] = useState(0)
   const importRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
+  const waveRef = useRef<HTMLInputElement>(null)
   const [importError, setImportError] = useState('')
+  /** Something worth knowing that is not an error, such as a video too big for a waveform. */
+  const [notice, setNotice] = useState('')
+  const exportBox = useRef<HTMLDialogElement>(null)
   const [paths, setPaths] = useState<PathMode>('selected')
   const [speed, setSpeed] = useState(1)
   const [loop, setLoop] = useState(false)
@@ -89,11 +99,18 @@ function Workspace({ project }: { project: Project }) {
     if (!song.current) return
     song.current.pause()
     URL.revokeObjectURL(song.current.src)
+    song.current.remove()
     song.current = null
+    setHasVideo(false)
   }
   const attachSong = (blob: Blob) => {
     dropSong()
-    song.current = new Audio(URL.createObjectURL(blob))
+    const video = blob.type.startsWith('video/')
+    const el = video ? Object.assign(document.createElement('video'), { playsInline: true, preload: 'auto' }) : new Audio()
+    el.src = URL.createObjectURL(blob)
+    if (video) screen.current?.append(el)
+    song.current = el
+    setHasVideo(video)
     setAudioMissing(false)
   }
   // Runs again whenever the routine gains or loses its song, including through undo and redo.
@@ -106,25 +123,53 @@ function Workspace({ project }: { project: Project }) {
         if (!live) return
         if (!blob) return setAudioMissing(true)
         attachSong(blob)
-        const peaks = decoded.current ?? (await readAudio(blob)).peaks
+        // A video with no sound still plays; it just has no waveform.
+        const peaks = decoded.current ?? (project.audio?.wave && (await loadWave(project.id))) ?? (await readAudio(blob).catch(() => ({ peaks: new Float32Array(0) }))).peaks
         decoded.current = null
         if (live) setPeaks(peaks)
       }).catch(() => live && setAudioMissing(true))
     }
     return () => { live = false; dropSong() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id, !project.audio, songRev])
+  }, [project.id, !project.audio, !project.audio?.wave, songRev])
 
   const addAudio = async (file?: File) => {
     if (!file) return
     try {
-      if (!file.type.startsWith('audio/')) throw new Error('That file is not audio. Choose an MP3, WAV or M4A file.')
-      if (file.size > MAX_AUDIO_BYTES) throw new Error('That song is larger than 60 MB. Try a shorter or more compressed file.')
-      const { duration, peaks } = await readAudio(file).catch(() => { throw new Error('This browser could not read that audio file. Try an MP3 or WAV version.') })
-      await saveAudio(project.id, file)
+      const video = file.type.startsWith('video/')
+      if (!video && !file.type.startsWith('audio/')) throw new Error('That file is not music or video. Choose an MP3, WAV or M4A song, or an MP4, MOV or WebM video.')
+      if (!video && file.size > MAX_AUDIO_BYTES) throw new Error('That song is larger than 60 MB. Try a shorter or more compressed file.')
+      const { duration, peaks } = await readAudio(file).catch(async () => {
+        if (!video) throw new Error('This browser could not read that audio file. Try an MP3 or WAV version.')
+        // No sound it can read, or too big to draw: keep the picture, with an empty waveform.
+        return { duration: await videoLength(file).catch(() => { throw new Error('This browser could not read that video. Try an MP4 version.') }), peaks: new Float32Array(0) }
+      })
+      // Ask the browser how much room is left before trying, so a file that cannot fit says so plainly.
+      const room = await navigator.storage?.estimate?.().catch(() => undefined)
+      const free = room?.quota ? room.quota - (room.usage ?? 0) : Infinity
+      const mb = (n: number) => `${Math.round(n / 1024 / 1024)} MB`
+      if (file.size > free) throw new Error(`That file is ${mb(file.size)}, and this browser has ${mb(free)} of storage left for Eight. Free up disk space or use a smaller file.`)
+      await saveAudio(project.id, file).catch(() => { throw new Error('This browser does not have enough storage space left for that file.') })
       decoded.current = peaks
       edit(p => { p.audio = { name: file.name, duration: round(duration) } })
       setSongRev(r => r + 1)
+      setNotice(!peaks.length ? (file.size > MAX_WAVEFORM_BYTES ? `This video is ${mb(file.size)}. Over 300 MB there is no waveform from the video itself, but it plays, stays in step and exports as usual. Add its song under Routine to get a waveform.` : 'No sound could be read from this video, so it has no waveform. It still plays in step. Add its song under Routine to get one.') : '')
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'That song could not be added.')
+    }
+  }
+  /** Uses a song file's waveform for the routine's video. Nothing new plays: the video stays the sound and the clock. */
+  const addWave = async (file?: File) => {
+    if (!file) return
+    try {
+      if (!file.type.startsWith('audio/')) throw new Error('Choose the song as an MP3, WAV or M4A file.')
+      if (file.size > MAX_AUDIO_BYTES) throw new Error('That song is larger than 60 MB. Try a shorter or more compressed file.')
+      const { peaks } = await readAudio(file).catch(() => { throw new Error('This browser could not read that audio file. Try an MP3 or WAV version.') })
+      await saveWave(project.id, peaks)
+      decoded.current = peaks
+      edit(p => { if (p.audio) p.audio.wave = { name: file.name, offset: p.audio.wave?.offset ?? 0 } })
+      setSongRev(r => r + 1)
+      setNotice('')
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'That song could not be added.')
     }
@@ -193,7 +238,8 @@ function Workspace({ project }: { project: Project }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.closest('input, textarea, select')) return
+      // A window on top (the export options) owns the keyboard while it is open.
+      if (t.closest('input, textarea, select') || document.querySelector('dialog[open]')) return
       const mod = e.ctrlKey || e.metaKey
       const k = e.key.toLowerCase()
       if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
@@ -241,13 +287,13 @@ function Workspace({ project }: { project: Project }) {
     () => (current > 0 && formations[current] ? clashes(formations[current - 1].positions, formations[current].positions, dancers.filter(isPerson).map(d => d.id)) : []),
     [formations, current, dancers],
   )
-  const exportVideo = async () => {
+  const exportVideo = async (options: { picture: boolean; mirror: boolean; height: number }) => {
     setPlaying(false)
     const ctl = (stopVideo.current = new AbortController())
     dropVideo()
     setVideo(0)
     try {
-      const blob = await recordVideo(project, project.audio ? await loadAudio(project.id) : undefined, setVideo, ctl.signal)
+      const blob = await recordVideo(project, project.audio ? await loadAudio(project.id) : undefined, setVideo, ctl.signal, options)
       setVideoFile({ url: URL.createObjectURL(blob), name: `${fileName}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}` })
     } catch {
       if (!ctl.signal.aborted) setImportError('The video could not be made in this browser.')
@@ -295,17 +341,17 @@ function Workspace({ project }: { project: Project }) {
           <button className="btn" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Shift+Z)"><Icon name="redo" />Redo</button>
           <button className="btn" onClick={() => importRef.current?.click()}><Icon name="upload" />Import</button>
           <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={e => { importFile(e.target.files?.[0]); e.target.value = '' }} />
-          <details className="menu">
-            <summary className="btn btn-solid"><Icon name="download" />Export</summary>
-            <div className="menu-list" onClick={e => { e.currentTarget.parentElement!.removeAttribute('open') }}>
-              <button onClick={() => download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))}>Routine file, to back up or share</button>
-              <button onClick={() => savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${formationLabel(here, view.index).title}.png`).catch(() => setImportError('The picture could not be made in this browser.'))}>This formation as a picture</button>
-              <a href={`#/r/${project.id}/print`}>All formations as a PDF</a>
-              <button onClick={exportVideo} disabled={video !== null}>The whole routine as a video, with its music</button>
-            </div>
-          </details>
+          <button className="btn btn-solid" onClick={() => exportBox.current?.showModal()}><Icon name="download" />Export</button>
         </nav>
       </header>
+      <ExportDialog box={exportBox} hasVideo={hasVideo} showVideo={showVideo} mirrored={mirrored} busy={video !== null} length={totalTime(formations)} formation={formationLabel(here, view.index).title}
+        onExport={(kind, options) => {
+          if (kind === 'file') download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))
+          else if (kind === 'picture') savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${formationLabel(here, view.index).title}.png`).catch(() => setImportError('The picture could not be made in this browser.'))
+          else if (kind === 'pdf') go(`#/r/${project.id}/print`)
+          else exportVideo(options)
+        }} />
+      {notice && <p className="toast is-info" role="status">{notice} <button className="link" onClick={() => setNotice('')}>Dismiss</button></p>}
       {importError && <p className="toast" role="alert">{importError} <button className="link" onClick={() => setImportError('')}>Dismiss</button></p>}
 
       {video !== null && <p className="toast is-info" role="status">Recording the video: {Math.round(video * 100)}%. It plays through once at normal speed, so keep this tab open. <button className="link" onClick={() => stopVideo.current?.abort()}>Cancel</button></p>}
@@ -320,12 +366,14 @@ function Workspace({ project }: { project: Project }) {
         <button className="btn btn-line" onClick={addProp} disabled={!editable}><Icon name="plus" />Add prop</button>
       </aside>
 
-      <main className="floor">
+      <main className={`floor${hasVideo && showVideo ? ' has-screen' : ''}`}>
         <span className="chip">{pad(view.index + 1)} · {gelName(gel)}</span>
         <StageView stage={stage} dancers={dancers} positions={view.positions} selected={editable ? selected : []}
           onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined}
           ghosts={editable ? formations[current - 1]?.positions : undefined} next={editable ? formations[current + 1]?.positions : undefined} paths={paths} flip={flipped} clash={editable ? hits.flat() : []}
           onBend={editable ? (id, via) => edit(p => { const q = p.formations[current].positions[id]; if (via) q.via = via; else delete q.via }) : undefined} />
+        {/* The video element itself is put in here when a video is attached, so it keeps playing across re-renders. */}
+        <div className={`screen${mirrored ? ' is-mirrored' : ''}`} ref={screen} hidden={!hasVideo || !showVideo} aria-label="The routine's video" />
         <div className="floor-tool">
           <label>Paths
             <select value={paths} onChange={e => setPaths(e.target.value as PathMode)}>
@@ -333,6 +381,8 @@ function Workspace({ project }: { project: Project }) {
             </select>
           </label>
           <button className="btn btn-line" aria-pressed={flipped} onClick={() => setFlipped(!flipped)} title="Shows the stage from the back, the way the dancers face, with the audience at the top">Dancers' view</button>
+          {hasVideo && showVideo && <button className="btn btn-line" aria-pressed={mirrored} onClick={() => setMirrored(!mirrored)} title="Flips the video left to right, like a mirror, so you can follow it facing the same way">Mirror video</button>}
+          {hasVideo && <button className="btn btn-line" onClick={() => setShowVideo(!showVideo)}>{showVideo ? 'Hide video' : 'Show video'}</button>}
         </div>
         {playing && here.note && <p className="caption">{here.note}</p>}
         <p className="hint">
@@ -412,6 +462,16 @@ function Workspace({ project }: { project: Project }) {
             })} />
             <Field label="First beat at" type="number" min={0} max={600} step={0.01} suffix="s" value={project.beatOffset ?? 0} onCommit={v => edit(p => { p.beatOffset = round(Number(v)) })} />
             <button className="btn btn-line" onClick={() => edit(p => { p.beatOffset = round(time) })}>Set first beat to playhead</button>
+            {hasVideo && (project.audio?.wave ? (
+              <>
+                <p className="readout"><span>Waveform from</span><strong>{project.audio.wave.name}</strong></p>
+                <Field label="That song starts this far into the video" type="number" min={-600} max={600} step={0.01} suffix="s" value={project.audio.wave.offset} onCommit={v => edit(p => { p.audio!.wave!.offset = round(Number(v)) })} />
+                <div className="row">
+                  <button className="btn btn-line" onClick={() => edit(p => { p.audio!.wave!.offset = round(time) })} title="Put the playhead where the song starts in the video, then press this">Starts at playhead</button>
+                  <button className="btn btn-line" onClick={() => edit(p => { delete p.audio!.wave })}>Use the video's sound</button>
+                </div>
+              </>
+            ) : <button className="btn btn-line" onClick={() => waveRef.current?.click()} title="Draws the waveform from the song itself, which is cleaner than a video's sound and works for videos too big to read">Use a song file for the waveform</button>)}
             <Field label="Counts in a bar" type="number" min={2} max={16} step={1} value={project.countsPerBar ?? 8} onCommit={v => edit(p => { p.countsPerBar = Math.round(Number(v)) })} />
             <div className="pair">
               <Field label="New formations hold" {...lengthField} min={counts ? 0.25 : 0.1} value={shown(fresh.hold)} onCommit={v => edit(p => { p.defaults = { ...newLengths(p), hold: Math.max(0.1, tidy(p, Number(v) * unit)) } })} />
@@ -449,11 +509,12 @@ function Workspace({ project }: { project: Project }) {
         )}
       </aside>
 
-      <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing}
+      <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing} hasVideo={hasVideo}
         speed={speed} onSpeed={setSpeed} loop={loop} onLoop={setLoop}
         onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(); follow() }} onFollow={follow}
-        onPickAudio={() => audioRef.current?.click()} onRemoveAudio={removeAudio} />
-      <input ref={audioRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addAudio(e.target.files?.[0]); e.target.value = '' }} />
+        onPickAudio={() => audioRef.current?.click()} onPickWave={() => waveRef.current?.click()} onRemoveAudio={removeAudio} />
+      <input ref={waveRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addWave(e.target.files?.[0]); e.target.value = '' }} />
+      <input ref={audioRef} type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.mov,.webm" hidden onChange={e => { addAudio(e.target.files?.[0]); e.target.value = '' }} />
     </div>
   )
 }
@@ -500,5 +561,64 @@ function Arrange({ label, ids, positions, formation, stage, all }: { label: stri
       {btn('Spread', () => scale(1.2))}
       {btn('Tighten', () => scale(1 / 1.2))}
     </fieldset>
+  )
+}
+
+type ExportKind = 'file' | 'picture' | 'pdf' | 'video'
+
+/** The export options window: what to save, and for a video, how. */
+function ExportDialog({ box, hasVideo, showVideo, mirrored, busy, length, formation, onExport }: {
+  box: React.RefObject<HTMLDialogElement | null>
+  hasVideo: boolean
+  /** How the editor shows the routine's video right now; the video options start from these. */
+  showVideo: boolean
+  mirrored: boolean
+  /** A video is already being recorded. */
+  busy: boolean
+  /** Seconds the routine runs, which is how long a video takes to record. */
+  length: number
+  formation: string
+  onExport: (kind: ExportKind, options: { picture: boolean; mirror: boolean; height: number }) => void
+}) {
+  const [kind, setKind] = useState<ExportKind>('file')
+  const [height, setHeight] = useState(1080)
+  const [picture, setPicture] = useState(showVideo)
+  const [mirror, setMirror] = useState(mirrored)
+  // Each time the editor's own video settings change, the window starts from them again.
+  useEffect(() => { setPicture(showVideo); setMirror(mirrored) }, [showVideo, mirrored])
+  const choice = (value: ExportKind, title: string, about: string) => (
+    <label className="choice">
+      <input type="radio" name="kind" checked={kind === value} onChange={() => setKind(value)} />
+      <b>{title}</b>
+      <span>{about}</span>
+    </label>
+  )
+  return (
+    <dialog className="dialog" ref={box} aria-labelledby="export-title" onClick={e => { if (e.target === e.currentTarget) e.currentTarget.close() }}>
+      <form method="dialog" onSubmit={() => onExport(kind, { picture: hasVideo && picture, mirror, height })}>
+        <h2 id="export-title">Export</h2>
+        {choice('file', 'Routine file', 'Everything except the music or video, to back up or send to someone who uses Eight.')}
+        {choice('picture', 'Picture', `${formation} as it is on the stage now, as a PNG image.`)}
+        {choice('pdf', 'PDF sheets', 'Every formation on paper. Opens the print page, where you choose the layout.')}
+        {choice('video', 'Video', 'The whole routine playing through, with its sound, as a video file.')}
+        {kind === 'video' && (
+          <fieldset className="dialog-more">
+            <legend>Video options</legend>
+            <label className="field"><span>Size</span>
+              <select value={height} onChange={e => setHeight(Number(e.target.value))}>
+                <option value={1080}>1080p (1920 × 1080), sharper</option><option value={720}>720p (1280 × 720), smaller file, easier on a slow computer</option>
+              </select>
+            </label>
+            {hasVideo && <label className="check"><input type="checkbox" checked={picture} onChange={e => setPicture(e.target.checked)} />Show the routine's video beside the formations</label>}
+            {hasVideo && picture && <label className="check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} />Mirror that video left to right</label>}
+            <p className="dialog-note">It records while the routine plays through once, so this takes about {clock(length + 1).slice(0, -3)}. Keep this tab open until the Save link appears.</p>
+          </fieldset>
+        )}
+        <div className="row">
+          <button type="button" className="btn btn-line" onClick={() => box.current?.close()}>Cancel</button>
+          <button className="btn btn-solid" disabled={kind === 'video' && busy}>{kind === 'pdf' ? 'Open the print page' : kind === 'video' && busy ? 'Already recording…' : 'Export'}</button>
+        </div>
+      </form>
+    </dialog>
   )
 }

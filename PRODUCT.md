@@ -33,6 +33,8 @@ Planning at a laptop before or between rehearsals; checking and light edits on i
 ## Capabilities and Constraints
 
 - Phased build: (1) core editor, (2) music and paths, (3) power tools, (4) sharing, (5) collaboration. Requirements live in the research brief (FR-1 to FR-45, NFR-1 to NFR-8).
+- Built so far (November 2026): phases 1 to 3. That covers the editor, music or video beside the stage, counts or seconds timing, snapping, preset shapes and group tools, clash warnings, props, and export to routine file, picture, PDF and video. Sharing and collaboration are not started.
+- Media limits: songs up to 60 MB; videos of any size the device can store, with no waveform of their own above 300 MB (a song file can supply one). One song or video per routine.
 - Positions are stored in stage units (metres), never pixels.
 - At least 100 dancers per project, 60 fps playback.
 - Works offline; hosting and backend stay at US$0.

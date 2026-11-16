@@ -64,7 +64,12 @@ export interface Project {
   /** Seconds into the timeline where beat one of the grid falls. */
   beatOffset?: number
   /** The song itself is stored beside the project, never inside it. */
-  audio?: { name: string; duration: number }
+  audio?: {
+    name: string
+    duration: number
+    /** A song file whose waveform is drawn in place of the video's own sound, and how many seconds into the video that song starts. */
+    wave?: { name: string; offset: number }
+  }
   archived?: boolean
   createdAt: number
   updatedAt: number

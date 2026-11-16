@@ -17,3 +17,23 @@ dist
 .idea
 .DS_Store
 Thumbs.db
+
+# Songs, videos and exported routines: usually copyrighted or personal, never part of the source.
+# Marketing files made for the project are the exception.
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.flac
+*.mp4
+*.mov
+*.webm
+*.eight.json
+eight-backup*.json
+!marketing/**
+
+# Research notes, keys and certificates
+research/
+*.pem
+*.key
+*.p12

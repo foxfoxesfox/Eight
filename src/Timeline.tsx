@@ -17,6 +17,8 @@ interface Props {
   index: number
   peaks: Float32Array | null
   audioMissing: boolean
+  /** The routine's music is a video, shown beside the stage. */
+  hasVideo: boolean
   speed: number
   onSpeed: (s: number) => void
   loop: boolean
@@ -28,9 +30,13 @@ interface Props {
   onFollow: () => void
   onPickAudio: () => void
   onRemoveAudio: () => void
+  /** Choose a song file to draw the waveform from, for a video that has none. */
+  onPickWave: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
+  /** Seconds into the timeline where the drawn waveform starts. */
+  const waveAt = project.audio?.wave?.offset ?? 0
   /** The right-click menu: which formation it is for and where it was opened. */
   const [menu, setMenu] = useState<{ i: number; x: number; y: number } | null>(null)
   const [pps, setPps] = useState(48) // pixels per second
@@ -89,15 +95,16 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
     if (!peaks) return
     g.fillStyle = getComputedStyle(c).color
     for (let x = 0; x < w; x++) {
-      const a = Math.floor(((view.left + x) / pps) * PEAK_RATE)
-      const b = Math.max(a + 1, Math.floor(((view.left + x + 1) / pps) * PEAK_RATE))
+      const a = Math.floor(((view.left + x) / pps - waveAt) * PEAK_RATE)
+      const b = Math.max(a + 1, Math.floor(((view.left + x + 1) / pps - waveAt) * PEAK_RATE))
+      if (a < 0) continue
       if (a >= peaks.length) break
       let v = 0
       for (let k = a; k < b && k < peaks.length; k++) if (peaks[k] > v) v = peaks[k]
       const bar = Math.max(1, v * (h - 4))
       g.fillRect(x, (h - bar) / 2, 1, bar)
     }
-  }, [peaks, pps, view])
+  }, [peaks, pps, view, waveAt])
 
   // Seconds between snap lines, or 0 when snapping is off or goes to edges instead of a grid.
   const grid = { off: 0, edge: 0, count: beat, half: beat / 2, bar: beat * perBar, second: 1 }[snap]
@@ -201,8 +208,8 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
             <button className="btn btn-line" onClick={() => zoom(1.5)} aria-label="Zoom in"><Icon name="plus" /></button>
           </span>
           {project.audio
-            ? <button className="btn btn-line" onClick={onRemoveAudio} title={project.audio.name}>Remove music</button>
-            : <button className="btn btn-line" onClick={onPickAudio}><Icon name="upload" />Add music</button>}
+            ? <button className="btn btn-line" onClick={onRemoveAudio} title={project.audio.name}>{hasVideo ? 'Remove video' : 'Remove music'}</button>
+            : <button className="btn btn-line" onClick={onPickAudio}><Icon name="upload" />Add music or video</button>}
           <button className="btn btn-line" onClick={onAddFormation} disabled={playing}><Icon name="plus" />Add formation</button>
         </div>
       </div>
@@ -241,10 +248,13 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, s
 
           <div className="wave">
             {project.audio && !audioMissing
-              ? <canvas ref={canvas} style={{ width: view.width, left: view.left }} aria-label={`Waveform of ${project.audio.name}`} role="img" />
+              ? <>
+                  <canvas ref={canvas} style={{ width: view.width, left: view.left }} aria-label={`Waveform of ${project.audio.wave?.name ?? project.audio.name}`} role="img" />
+                  {peaks && !peaks.length && <p style={{ left: view.left, width: view.width }}>No waveform for this video. <button className="link" onClick={onPickWave}>Add its song</button> to see one to line formations up with.</p>}
+                </>
               : <p style={{ left: view.left, width: view.width }}>
-                  {audioMissing ? <>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song again</button></>
-                    : <>No music yet. <button className="link" onClick={onPickAudio}>Add a song</button> to line formations up with what you hear.</>}
+                  {audioMissing ? <>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song or video again</button></>
+                    : <>No music yet. <button className="link" onClick={onPickAudio}>Add a song or a video</button> to line formations up with what you hear. Songs up to 60 MB; videos of any size your device has room for.</>}
                 </p>}
           </div>
 
