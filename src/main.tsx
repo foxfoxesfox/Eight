@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/figtree'
 import './styles.css'
 import { Editor } from './Editor'
+import { Help } from './Help'
 import { Landing } from './Landing'
 import { PrintView } from './Print'
 import { Projects } from './Projects'
@@ -25,6 +26,7 @@ function App() {
   const routine = hash.match(/^#\/r\/([\w-]+)$/)
   if (routine) return <Editor key={routine[1]} id={routine[1]} />
   if (hash.startsWith('#/routines')) return <Projects />
+  if (hash.startsWith('#/help')) return <Help />
   return <Landing />
 }
 

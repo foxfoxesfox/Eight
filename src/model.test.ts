@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('./db', () => ({ saveProject: () => Promise.resolve() }))
 
 import { clashes, formationLabel, labelFor, presetShape, newProject, parseProject, parseProjects, positionsAt, span, startTimes, tidy, totalTime } from './model'
+import { parseGuide } from './Help'
+import guide from '../docs/GUIDE.md?raw'
 import { addDancer, addFormation, matchPrevious, moveDancers, removeDancers, resizeStage, useEditor } from './store'
 
 describe('model', () => {
@@ -81,6 +83,17 @@ describe('model', () => {
     expect(parseProjects(JSON.stringify([p, p])).map(q => q.name)).toEqual(['Opener', 'Opener'])
     expect(parseProjects(JSON.stringify(p))).toHaveLength(1)
     expect(() => parseProjects('[]')).toThrow(/no routines/)
+  })
+})
+
+describe('help page', () => {
+  it('reads every part of the guide, so nothing in it shows as raw Markdown', () => {
+    const blocks = parseGuide(guide)
+    expect(blocks.filter(b => b.kind === 'h3').length).toBeGreaterThan(10)
+    expect(blocks.some(b => b.kind === 'ol' && b.items.length === 8)).toBe(true)
+    // No heading marks, list marks or links left inside any text.
+    const text = blocks.flatMap(b => ('items' in b ? b.items : [b.text]))
+    expect(text.filter(t => /^(#|- |\d+\. )|\]\(/.test(t))).toEqual([])
   })
 })
 

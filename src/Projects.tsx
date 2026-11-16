@@ -50,6 +50,7 @@ export function Projects() {
         <a className="wordmark" href="#/">Eight</a>
         <nav className="bar-actions" aria-label="Library actions">
           <ThemeToggle />
+          <a className="btn" href="#/help">Help</a>
           <button className="btn" onClick={() => fileRef.current?.click()}><Icon name="upload" />Import a file</button>
           <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={e => { importFile(e.target.files?.[0]); e.target.value = '' }} />
           {!!all?.length && <button className="btn" onClick={() => download('eight-backup.json', JSON.stringify(all, null, 2))}><Icon name="download" />Back up all</button>}

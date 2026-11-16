@@ -8,7 +8,7 @@ Place everyone on the stage, time each formation to your music or video, and wat
 
 Runs in the browser. No account, nothing to install, and everything stays on your device; nothing is uploaded.
 
-What's new in each version: [CHANGELOG.md](CHANGELOG.md). For sharing outside GitHub there is a poster, [marketing/poster.png](marketing/poster.png), and a 20-second vertical video, [marketing/promo.mp4](marketing/promo.mp4).
+How to use it, and answers to common questions: [docs/GUIDE.md](docs/GUIDE.md), which is also the app's Help page. What's new in each version: [CHANGELOG.md](CHANGELOG.md). For sharing outside GitHub there is a poster, [marketing/poster.png](marketing/poster.png), and a 20-second vertical video, [marketing/promo.mp4](marketing/promo.mp4).
 
 ## What it does
 
@@ -42,7 +42,7 @@ What's new in each version: [CHANGELOG.md](CHANGELOG.md). For sharing outside Gi
 
 ## Your data
 
-Everything is stored in your browser (IndexedDB) on the device you are using. Nothing is uploaded, there is no account and no tracking. Clearing the browser's site data removes your routines, so export the ones you care about.
+Everything is stored in your browser (IndexedDB) on the device you are using. Nothing is uploaded, there is no account and no tracking. Clearing the browser's site data removes your routines, so export the ones you care about. The [guide](docs/GUIDE.md#there-are-no-accounts-what-does-that-mean-for-me) lists what having no accounts means in practice.
 
 Songs and videos stay on the device too. They are not included in an exported routine file, so whoever you send a routine to adds the music themselves.
 

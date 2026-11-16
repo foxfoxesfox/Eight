@@ -16,7 +16,12 @@ export const db = new EightDB()
 
 export const listProjects = () => db.projects.orderBy('updatedAt').reverse().toArray().then(all => all.map(migrate))
 export const loadProject = (id: string) => db.projects.get(id).then(p => p && migrate(p))
-export const saveProject = (p: Project) => db.projects.put(p)
+let asked = false
+export const saveProject = (p: Project) => {
+  // Once per visit, ask the browser not to clear this site's data when the disk runs low. With no accounts, this storage is the only copy.
+  if (!asked) { asked = true; navigator.storage?.persist?.().catch(() => {}) }
+  return db.projects.put(p)
+}
 export const deleteProject = (id: string) => Promise.all([db.projects.delete(id), db.audio.delete(id), db.audio.delete(id + ':wave')])
 
 export const loadAudio = (id: string) => db.audio.get(id).then(a => a?.blob)

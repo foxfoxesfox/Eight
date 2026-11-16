@@ -346,6 +346,8 @@ function Workspace({ project }: { project: Project }) {
         </div>
         <nav className="bar-actions" aria-label="Routine actions">
           <ThemeToggle />
+          {/* A new tab, so reading the guide does not close the routine being edited. */}
+          <a className="btn" href="#/help" target="_blank" rel="noopener">Help</a>
           <button className="btn" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Icon name="undo" />Undo</button>
           <button className="btn" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Shift+Z)"><Icon name="redo" />Redo</button>
           <button className="btn" onClick={() => importRef.current?.click()}><Icon name="upload" />Import</button>

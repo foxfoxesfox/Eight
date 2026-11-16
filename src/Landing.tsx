@@ -49,7 +49,7 @@ export function Landing() {
     <div className="page landing">
       <header className="bar">
         <span className="wordmark">Eight</span>
-        <nav className="bar-actions"><ThemeToggle /><a className="btn btn-solid" href="#/routines">Open the planner</a></nav>
+        <nav className="bar-actions"><ThemeToggle /><a className="btn" href="#/help">Help</a><a className="btn btn-solid" href="#/routines">Open the planner</a></nav>
       </header>
       <main>
         <section className="hero">

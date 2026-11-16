@@ -12,6 +12,8 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - A storage check before saving a song or video, and plain messages about file limits.
 - README banner, poster, a 20-second promo video and this changelog.
 - A volume slider for the song or video.
+- A user guide and FAQ in `docs/GUIDE.md`, shown inside the app on a Help page linked from every screen.
+- The app asks the browser to keep its saved routines when disk space runs low.
 
 **Changed**
 - Playback speed is a slider from 0.25× to 1.5× (was a three-option menu), and dragging it no longer restarts the song.
