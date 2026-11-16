@@ -42,3 +42,6 @@ research/
 marketing/promo/.hyperframes/
 marketing/promo/renders/
 marketing/promo/node_modules/
+
+# Internal product notes, kept on this machine only
+PRODUCT.md

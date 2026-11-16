@@ -108,7 +108,7 @@ React, TypeScript and Vite. State lives in a Zustand store with Immer patches fo
 | `src/audio.ts`, `src/video.ts`, `src/pdf.ts` | Waveforms, video export, PDF export |
 | `src/db.ts` | Browser storage |
 
-Positions are stored in metres and lengths in seconds, whatever units the screen shows. `PRODUCT.md` describes who the product is for and `DESIGN.md` the visual system.
+Positions are stored in metres and lengths in seconds, whatever units the screen shows. `DESIGN.md` describes the visual system.
 
 ## Contributing
 
