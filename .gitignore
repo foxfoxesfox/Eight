@@ -37,3 +37,8 @@ research/
 *.pem
 *.key
 *.p12
+
+# Video project working files
+marketing/promo/.hyperframes/
+marketing/promo/renders/
+marketing/promo/node_modules/

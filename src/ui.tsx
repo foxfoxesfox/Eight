@@ -129,7 +129,10 @@ export function download(name: string, data: BlobPart, type = 'application/json'
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([data], { type }))
   a.download = name
+  // In the page while it is clicked: a link that is not in the document is ignored by some browsers.
+  document.body.append(a)
   a.click()
+  a.remove()
   // Not at once: some browsers drop a download whose address is withdrawn before they have started reading it.
   setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
 }

@@ -8,7 +8,7 @@ Place everyone on the stage, time each formation to your music or video, and wat
 
 Runs in the browser. No account, nothing to install, and everything stays on your device; nothing is uploaded.
 
-What's new in each version: [CHANGELOG.md](CHANGELOG.md). A poster for sharing outside GitHub is in [marketing/poster.png](marketing/poster.png).
+What's new in each version: [CHANGELOG.md](CHANGELOG.md). For sharing outside GitHub there is a poster, [marketing/poster.png](marketing/poster.png), and a 20-second vertical video, [marketing/promo.mp4](marketing/promo.mp4).
 
 ## What it does
 
@@ -26,10 +26,10 @@ What's new in each version: [CHANGELOG.md](CHANGELOG.md). A poster for sharing o
 - Time in seconds or in counts at a tempo, with any number of counts in a bar.
 - Snap to counts, half counts, bars, whole seconds, or formation edges and the playhead.
 - Right-click a formation to duplicate it, reset it to the one before, line everyone up, move or delete it.
-- Loop one formation, play at 1×, 0.75× or 0.5×.
+- Loop one formation, and slide the playback speed anywhere from 0.25× to 1.5×.
 
 **Music and video**
-- Add a song (MP3, WAV, M4A, up to 60 MB) and see its waveform.
+- Add a song (MP3, WAV, M4A, up to 60 MB) and see its waveform. A volume slider sits beside the speed slider.
 - Or add a video (MP4, MOV, WebM): it plays beside the stage in step with the formations, and can be mirrored.
 - A video over 300 MB has no waveform of its own; add its song file and the waveform is drawn from that, with an offset to line it up.
 
@@ -83,6 +83,16 @@ npm run build
 ```
 
 `npm run build` type-checks and writes a static site to `dist/`, which can be hosted anywhere that serves files. There is no server and no environment variables.
+
+### Hosting on Cloudflare Pages
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Node version | 22, read from `.node-version` |
+
+The site must be served from `dist`, not from the repository root. The root `index.html` points at TypeScript source that a browser cannot run, so serving it shows a blank page. If you upload by hand instead of connecting the repository, upload the `dist` folder.
 
 ## How it is put together
 

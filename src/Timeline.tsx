@@ -21,6 +21,9 @@ interface Props {
   hasVideo: boolean
   speed: number
   onSpeed: (s: number) => void
+  /** Loudness of the song or video, 0 to 1. */
+  volume: number
+  onVolume: (v: number) => void
   loop: boolean
   onLoop: (on: boolean) => void
   onSeek: (t: number) => void
@@ -34,7 +37,7 @@ interface Props {
   onPickWave: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, volume, onVolume, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
   /** Seconds into the timeline where the drawn waveform starts. */
   const waveAt = project.audio?.wave?.offset ?? 0
   /** The right-click menu: which formation it is for and where it was opened. */
@@ -190,11 +193,16 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
         <button className="btn btn-play" onClick={onToggle} aria-label={playing ? 'Stop' : 'Play from the playhead'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
         <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / perBar) + 1}, count {(beatNow % perBar) + 1}</span></p>
         <div className="deck-tools">
-          <label className="check">Speed
-            <select value={speed} onChange={e => onSpeed(Number(e.target.value))}>
-              <option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option>
-            </select>
+          <label className="check slider">Speed
+            <input type="range" min={0.25} max={1.5} step={0.05} value={speed} onChange={e => onSpeed(Number(e.target.value))} onDoubleClick={() => onSpeed(1)} aria-valuetext={`${speed} times normal speed`} title="Drag to slow down or speed up. Double-click for normal speed." />
+            <output>{speed.toFixed(2)}×</output>
           </label>
+          {project.audio && (
+            <label className="check slider">Volume
+              <input type="range" min={0} max={1} step={0.05} value={volume} onChange={e => onVolume(Number(e.target.value))} aria-valuetext={`${Math.round(volume * 100)} percent`} />
+              <output>{Math.round(volume * 100)}%</output>
+            </label>
+          )}
           <label className="check" title="Repeats the formation the playhead is in when you press Play"><input type="checkbox" checked={loop} onChange={e => onLoop(e.target.checked)} />Loop formation</label>
           <label className="check" title="What the playhead and formation edges jump to as you drag. Hold Alt while trimming to ignore it.">Snap to
             <select value={snap} onChange={e => setSnap(e.target.value as Snap)}>

@@ -69,6 +69,14 @@ function Workspace({ project }: { project: Project }) {
   const exportBox = useRef<HTMLDialogElement>(null)
   const [paths, setPaths] = useState<PathMode>('selected')
   const [speed, setSpeed] = useState(1)
+  // Read by the playback loop, so dragging the speed slider never restarts the song.
+  const speedRef = useRef(speed)
+  speedRef.current = speed
+  const [volume, setVolume] = useState(() => { try { const v = Number(localStorage.getItem('eight.volume') ?? 1); return v >= 0 && v <= 1 ? v : 1 } catch { return 1 } })
+  useEffect(() => {
+    if (song.current) { song.current.playbackRate = speed; song.current.volume = volume }
+    try { localStorage.setItem('eight.volume', String(volume)) } catch { /* storage refused: the volume still applies for this visit */ }
+  }, [speed, volume])
   const [loop, setLoop] = useState(false)
   const [flipped, setFlipped] = useState(false)
   /** How far a video recording has got, 0 to 1; null when none is being made. */
@@ -187,7 +195,8 @@ function Workspace({ project }: { project: Project }) {
     const sound = () => {
       if (!a || !a.paused || !(timeRef.current < a.duration - 0.05)) return
       a.currentTime = timeRef.current
-      a.playbackRate = speed
+      a.playbackRate = speedRef.current
+      a.volume = volume
       a.play().catch(() => {})
     }
     sound()
@@ -196,7 +205,7 @@ function Workspace({ project }: { project: Project }) {
     const tick = (now: number) => {
       sound()
       // The song is the clock while it is sounding, so picture and sound cannot drift apart.
-      let t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + ((now - last) / 1000) * speed
+      let t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + ((now - last) / 1000) * speedRef.current
       last = now
       if (loop && t >= loopRange.current[1]) {
         t = loopRange.current[0]
@@ -209,7 +218,7 @@ function Workspace({ project }: { project: Project }) {
     }
     raf = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(raf); a?.pause() }
-  }, [playing, end, speed, loop])
+  }, [playing, end, loop])
 
   const toggle = () => {
     if (!playing && timeRef.current >= end - 0.01) seek(0)
@@ -510,7 +519,7 @@ function Workspace({ project }: { project: Project }) {
       </aside>
 
       <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing} hasVideo={hasVideo}
-        speed={speed} onSpeed={setSpeed} loop={loop} onLoop={setLoop}
+        speed={speed} onSpeed={setSpeed} volume={volume} onVolume={setVolume} loop={loop} onLoop={setLoop}
         onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(); follow() }} onFollow={follow}
         onPickAudio={() => audioRef.current?.click()} onPickWave={() => waveRef.current?.click()} onRemoveAudio={removeAudio} />
       <input ref={waveRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addWave(e.target.files?.[0]); e.target.value = '' }} />
@@ -595,7 +604,7 @@ function ExportDialog({ box, hasVideo, showVideo, mirrored, busy, length, format
   )
   return (
     <dialog className="dialog" ref={box} aria-labelledby="export-title" onClick={e => { if (e.target === e.currentTarget) e.currentTarget.close() }}>
-      <form method="dialog" onSubmit={() => onExport(kind, { picture: hasVideo && picture, mirror, height })}>
+      <form method="dialog" onSubmit={() => { const options = { picture: hasVideo && picture, mirror, height }; setTimeout(() => onExport(kind, options)) }}>
         <h2 id="export-title">Export</h2>
         {choice('file', 'Routine file', 'Everything except the music or video, to back up or send to someone who uses Eight.')}
         {choice('picture', 'Picture', `${formation} as it is on the stage now, as a PNG image.`)}

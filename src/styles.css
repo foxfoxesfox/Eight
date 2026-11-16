@@ -387,3 +387,7 @@ input[type='number'] { appearance: textfield; }
 .dialog-note { font-size: 13px; color: var(--mute); }
 .dialog .row { margin-top: 6px; justify-content: flex-end; }
 .dialog .row .btn { flex: none; }
+
+/* Speed and volume sliders in the timeline bar. */
+.check.slider input[type='range'] { width: 96px; height: 20px; padding: 0; border: 0; background: none; }
+.check.slider output { min-width: 3.2em; font-variant-numeric: tabular-nums; color: var(--mute); }

@@ -10,9 +10,11 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - Export window in place of the dropdown: routine file, picture, PDF sheets or video, each with a line saying what you get.
 - Video export options: 720p or 1080p, the routine's video beside the formations, mirrored or not.
 - A storage check before saving a song or video, and plain messages about file limits.
-- README banner, poster and this changelog.
+- README banner, poster, a 20-second promo video and this changelog.
+- A volume slider for the song or video.
 
 **Changed**
+- Playback speed is a slider from 0.25× to 1.5× (was a three-option menu), and dragging it no longer restarts the song.
 - Video export is 1080p by default (was 720p).
 - A finished video is offered as a Save link, because browsers often block a download that starts by itself.
 - Videos are no longer refused for size; above 300 MB they load without a waveform.
