@@ -1,7 +1,7 @@
 {
   "version": 1,
   "historyId": "8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a",
-  "currentRevision": null,
+  "currentRevision": "ff70b6e0-3523-4794-b48e-b1df03e987f1",
   "pendingChanges": false,
   "files": {
     "AGENTS.md": {
@@ -25,8 +25,8 @@
       "content": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/ad/ad5dadeef78a520800a9e5cdd27a92ff5ac37f11b6a07f611b6b52b9f8c79a17"
     },
     "index.html": {
-      "hash": "89a8498668b93604736fc2ba093b719b9c0d22b169f675af7dcf88b1e6413d52",
-      "content": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/89/89a8498668b93604736fc2ba093b719b9c0d22b169f675af7dcf88b1e6413d52"
+      "hash": "7c6feadc2657cd0d690a7cae5981e6ce30792d1e48c14e2ea2bb5cccab32e3d4",
+      "content": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/7c/7c6feadc2657cd0d690a7cae5981e6ce30792d1e48c14e2ea2bb5cccab32e3d4"
     },
     "meta.json": {
       "hash": "0ab134bff75d40ed380308e346940b0ca9be17c3a3fcc8f2296d434cc0de5f46",
@@ -37,13 +37,67 @@
       "content": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/d7/d7765cfebeaaed47195b422a520a09ea0d538e808a7bbd1e566c1648a22ba589"
     }
   },
-  "revisions": {},
+  "revisions": {
+    "ff70b6e0-3523-4794-b48e-b1df03e987f1": {
+      "actor": {
+        "kind": "outside",
+        "name": "Outside"
+      },
+      "label": "Changed outside the app",
+      "startedAt": 1794817824578,
+      "endedAt": 1794817824579,
+      "files": {
+        "index.html": {
+          "before": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/89/89a8498668b93604736fc2ba093b719b9c0d22b169f675af7dcf88b1e6413d52",
+          "after": "/Users/martin/.cache/hyperframes/history/8e21c4d0-db0e-48f7-aa1b-eb8ede9b3f3a/blobs/7c/7c6feadc2657cd0d690a7cae5981e6ce30792d1e48c14e2ea2bb5cccab32e3d4"
+        }
+      }
+    }
+  },
   "checks": {
     "latest": {
-      "revision": null,
-      "id": "a6bf4037-2acc-446a-b03d-2fdd44dd5ba9"
+      "revision": "ff70b6e0-3523-4794-b48e-b1df03e987f1",
+      "id": "5c29000b-f750-4543-9e25-cb41a0201875"
     },
-    "revisions": {},
+    "revisions": {
+      "ff70b6e0-3523-4794-b48e-b1df03e987f1": [
+        {
+          "id": "5c29000b-f750-4543-9e25-cb41a0201875",
+          "scope": "project",
+          "report": "/Users/martin/Desktop/Projects/Eight/marketing/promo/.hyperframes/artifacts/checks/5c29000b-f750-4543-9e25-cb41a0201875.json",
+          "metadata": {
+            "ok": true,
+            "browserSkipped": false,
+            "options": {
+              "samples": 9,
+              "atTransitions": false,
+              "maxIssues": 80,
+              "collapseStatic": true,
+              "tolerance": 2,
+              "timeout": 45000,
+              "cache": true,
+              "contrast": true,
+              "craft": true,
+              "strict": false,
+              "snapshots": false,
+              "safeZones": [
+                "tiktok",
+                "reels",
+                "shorts"
+              ],
+              "browserGpuMode": "auto",
+              "includeUnmounted": false
+            }
+          },
+          "createdAt": 1794817826384,
+          "contentHash": "870bc56e51a9ca6ab2a8f4f825ebd92c8642d1393e52acaf56194357aa25c0bb",
+          "revision": "ff70b6e0-3523-4794-b48e-b1df03e987f1",
+          "inputFingerprint": "89d3f7e9249c14e0d8364b25789a8cb558cd31c0b707320c8a6fbe9b6d873311",
+          "inputScope": "local-project-files",
+          "attribution": "recorded-revision"
+        }
+      ]
+    },
     "unversioned": [
       {
         "id": "a6bf4037-2acc-446a-b03d-2fdd44dd5ba9",
