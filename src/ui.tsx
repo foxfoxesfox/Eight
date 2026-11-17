@@ -14,6 +14,8 @@ const paths: Record<string, ReactNode> = {
   trash: <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" />,
   download: <path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" />,
   upload: <path d="M12 16V5m0 0-4 4m4-4 4 4M5 20h14" />,
+  music: <path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />,
+  video: <path d="M3 6.5h12v11H3zM15 10.5l6-3.5v10l-6-3.5" />,
 }
 
 export function Icon({ name }: { name: keyof typeof paths }) {

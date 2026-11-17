@@ -11,10 +11,11 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - Video export options: 720p or 1080p, the routine's video beside the formations, mirrored or not.
 - A storage check before saving a song or video, and plain messages about file limits.
 - README banner, poster, a 20-second promo video and this changelog.
-- A volume slider for the song or video.
-- Drag a song, video or routine file onto the editor to add or open it. A message shows while a large file is read, and "Replace" swaps the song or video without removing it first.
+- The song or video is a track on the timeline: its name and volume sit at the start of its row, and clicking it (or right-clicking the waveform) opens volume, replace and remove. An empty row offers "Add music or video".
+- Drag a song, video or routine file onto the editor to add or open it. A message shows while a large file is read, and Replace swaps the song or video without removing it first.
 - A user guide and FAQ in `docs/GUIDE.md`, shown inside the app on a Help page linked from every screen.
 - The app asks the browser to keep its saved routines when disk space runs low.
+- `npm run e2e`: 53 end-to-end checks of every screen and feature, in headless Chrome and optionally Safari. `npm run e2e:open` serves the same checks as a web page to run from any browser.
 
 **Changed**
 - "Add formation" is a slot at the end of the timeline and adds after the last formation (Duplicate in the right-click menu adds after any other).
@@ -25,6 +26,9 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - Videos are no longer refused for size; above 300 MB they load without a waveform.
 
 **Fixed**
+- Exported videos had a sound track with nothing in it: the song or video's sound was recorded as silence.
+- In Safari, exporting a video with music could stop at 100% and never finish, Cancel did not stop it, and finished exports were silent and cut short. Safari exports now finish at full length with the sound; if a browser refuses to record the sound, the video is made silent and a message says so.
+- In Safari, the waveform of a long video stopped part way (at 1:54 of a 2:22 video), because Safari's sound decoder reads only part of a video file. Eight now reads the sound frame by frame when that happens.
 - A video or song could get a length shorter than the file in some browsers, cutting the timeline off early. The length now comes from the browser's player, and routines saved with a wrong length correct themselves when opened.
 - A selected dancer or prop in the list lost its name while the pointer was over it.
 

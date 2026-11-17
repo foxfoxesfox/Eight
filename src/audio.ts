@@ -1,3 +1,5 @@
+import { aacPeaks } from './mp4audio'
+
 /** Waveform resolution: peaks per second of audio. */
 export const PEAK_RATE = 100
 export const MAX_AUDIO_BYTES = 60 * 1024 * 1024
@@ -29,6 +31,11 @@ export async function readAudio(blob: Blob): Promise<{ duration: number; peaks: 
       const v = Math.abs(samples[i])
       const k = (i / per) | 0
       if (v > peaks[k]) peaks[k] = v
+    }
+    // Safari decodes only part of a video file's sound. When the player says the file runs longer, read the sound frame by frame instead.
+    if (blob.type.startsWith('video/')) {
+      const full = await mediaLength(blob).catch(() => 0)
+      if (full > buf.duration + 0.5) return await aacPeaks(await blob.arrayBuffer(), PEAK_RATE).catch(() => ({ duration: buf.duration, peaks }))
     }
     return { duration: buf.duration, peaks }
   } finally {

@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import { aacTrack } from './mp4audio'
+import tinyMov from './fixtures/tiny.mov?inline'
+import tinyMp4 from './fixtures/tiny.mp4?inline'
 
 vi.mock('./db', () => ({ saveProject: () => Promise.resolve() }))
 
@@ -83,6 +86,20 @@ describe('model', () => {
     expect(parseProjects(JSON.stringify([p, p])).map(q => q.name)).toEqual(['Opener', 'Opener'])
     expect(parseProjects(JSON.stringify(p))).toHaveLength(1)
     expect(() => parseProjects('[]')).toThrow(/no routines/)
+  })
+})
+
+describe('mp4 sound reader', () => {
+  // Safari's decodeAudioData stops part way through a long video's sound; this reader finds the frames for WebCodecs instead.
+  it('finds every AAC frame in an MP4 and a MOV', () => {
+    for (const url of [tinyMp4, tinyMov]) {
+      const buf = Uint8Array.from(atob(url.split(',')[1]), c => c.charCodeAt(0))
+      const t = aacTrack(buf.buffer)!
+      expect(t).toMatchObject({ codec: 'mp4a.40.2', sampleRate: 44100, channels: 1 })
+      expect(t.samples.length).toBeGreaterThanOrEqual(43) // one second of 1024-sample frames
+      // Every frame lies inside the file, one after another.
+      expect(t.samples.every(s => s.size > 0 && s.offset + s.size <= buf.byteLength)).toBe(true)
+    }
   })
 })
 

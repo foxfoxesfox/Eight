@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { clock, PEAK_RATE } from './audio'
 import { formationLabel, gelOf, inkOn, span, startTimes, tidy, totalTime, type Formation, type Project } from './model'
 import { addFormation, deleteFormation, edit, matchPrevious, moveFormation, resetLine } from './store'
@@ -45,6 +45,8 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
   const waveAt = project.audio?.wave?.offset ?? 0
   /** The right-click menu: which formation it is for and where it was opened. */
   const [menu, setMenu] = useState<{ i: number; x: number; y: number } | null>(null)
+  /** The sound track's settings menu, and where it opens. */
+  const [soundMenu, setSoundMenu] = useState<{ x: number; y: number } | null>(null)
   const [pps, setPps] = useState(48) // pixels per second
   const counts = project.timeUnit === 'counts'
   const secs = (n: number) => span(project, n)
@@ -203,12 +205,6 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
             <input type="range" min={0.25} max={1.5} step={0.05} value={speed} onChange={e => onSpeed(Number(e.target.value))} onDoubleClick={() => onSpeed(1)} aria-valuetext={`${speed} times normal speed`} title="Drag to slow down or speed up. Double-click for normal speed." />
             <output>{speed.toFixed(2)}×</output>
           </label>
-          {project.audio && (
-            <label className="check slider">Volume
-              <input type="range" min={0} max={1} step={0.05} value={volume} onChange={e => onVolume(Number(e.target.value))} aria-valuetext={`${Math.round(volume * 100)} percent`} />
-              <output>{Math.round(volume * 100)}%</output>
-            </label>
-          )}
           <label className="check" title="Repeats the formation the playhead is in when you press Play"><input type="checkbox" checked={loop} onChange={e => onLoop(e.target.checked)} />Loop formation</label>
           <label className="check" title="What the playhead and formation edges jump to as you drag. Hold Alt while trimming to ignore it.">Snap to
             <select value={snap} onChange={e => setSnap(e.target.value as Snap)}>
@@ -221,12 +217,6 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
             <button className="btn btn-line" onClick={() => setPps(Math.max(4, Math.min(400, (view.width - 24) / (end + 1))))}>Fit</button>
             <button className="btn btn-line" onClick={() => zoom(1.5)} aria-label="Zoom in"><Icon name="plus" /></button>
           </span>
-          {project.audio ? (
-            <>
-              <button className="btn btn-line" onClick={onPickAudio} disabled={reading} title={`Now: ${project.audio.name}. Choose another song or video, or drop one anywhere on the page.`}><Icon name="upload" />{hasVideo ? 'Replace video' : 'Replace music'}</button>
-              <button className="btn btn-line" onClick={onRemoveAudio} disabled={reading}>Remove</button>
-            </>
-          ) : <button className="btn btn-line" onClick={onPickAudio} disabled={reading} title="Or drop a song or video anywhere on the page"><Icon name="upload" />Add music or video</button>}
         </div>
       </div>
 
@@ -270,16 +260,26 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
             </li>
           </ol>
 
-          <div className="wave">
-            {project.audio && !audioMissing
-              ? <>
-                  <canvas ref={canvas} style={{ width: view.width, left: view.left }} aria-label={`Waveform of ${project.audio.wave?.name ?? project.audio.name}`} role="img" />
-                  {peaks && !peaks.length && <p style={{ left: view.left, width: view.width }}>No waveform for this video. <button className="link" onClick={onPickWave}>Add its song</button> to see one to line formations up with.</p>}
-                </>
-              : <p style={{ left: view.left, width: view.width }}>
-                  {audioMissing ? <>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song or video again</button></>
-                    : <>No music yet. <button className="link" onClick={onPickAudio}>Add a song or a video</button>, or drop one here, to line formations up with what you hear. Songs up to 60 MB; videos of any size your device has room for.</>}
-                </p>}
+          <div className="wave" onContextMenu={project.audio && !audioMissing ? e => { e.preventDefault(); setSoundMenu({ x: e.clientX, y: e.clientY }) } : undefined}>
+            {project.audio && !audioMissing ? (
+              <>
+                <canvas ref={canvas} style={{ width: view.width, left: view.left }} aria-label={`Waveform of ${project.audio.wave?.name ?? project.audio.name}`} role="img" />
+                {/* The track's own label stays in view as the timeline scrolls, and opens its settings. */}
+                <div className="sound-bar" style={{ left: view.left, width: view.width }}>
+                  <button className="sound-tag" aria-haspopup="menu" disabled={reading} title={`${project.audio.name}: volume, replace or remove. Right-clicking the waveform opens this too.`}
+                    onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.top - 6 }) }}>
+                    <Icon name={hasVideo ? 'video' : 'music'} /><span>{project.audio.name}</span><em>{Math.round(volume * 100)}%</em>
+                  </button>
+                  {peaks && !peaks.length && <p>No waveform for this video. <button className="link" onClick={onPickWave}>Add its song</button> to see one.</p>}
+                </div>
+              </>
+            ) : audioMissing ? (
+              <p style={{ left: view.left, width: view.width }}>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song or video again</button></p>
+            ) : (
+              <button className="sound-add" style={{ left: view.left + 4, width: view.width - 8 }} onClick={onPickAudio} disabled={reading}>
+                <Icon name="plus" />Add music or video<span>or drop a file here · songs up to 60 MB, videos any size your device has room for</span>
+              </button>
+            )}
           </div>
 
           <span className="playhead" style={{ left: time * pps }} aria-hidden="true" />
@@ -292,31 +292,58 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
           <button role="menuitem" className={danger ? 'btn-danger' : ''} disabled={off} onClick={() => { setMenu(null); run(); onFollow() }}>{label}</button>
         )
         return (
-          <>
-            <div className="ctx-shade" onPointerDown={() => setMenu(null)} onContextMenu={e => { e.preventDefault(); setMenu(null) }} />
-            {/* The timeline sits at the bottom of the window, so the menu opens upwards from the pointer. */}
-            <div className="menu-list ctx" role="menu" aria-label={`Actions for ${formationLabel(project.formations[i], i).title}`}
-              style={{ left: Math.max(8, Math.min(menu.x, innerWidth - 290)), bottom: innerHeight - menu.y }}
-              ref={el => { if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>('button:not(:disabled)')?.focus() }}
-              onKeyDown={e => {
-                e.stopPropagation()
-                if (e.key === 'Escape') return setMenu(null)
-                const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-                if (!dir) return
-                e.preventDefault()
-                const all = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled)')]
-                all[(all.indexOf(document.activeElement as HTMLElement) + dir + all.length) % all.length]?.focus()
-              }}>
-              {item('Duplicate', () => addFormation(i))}
-              {item(i ? `Reset positions to ${formationLabel(project.formations[i - 1], i - 1).title}` : 'Reset positions to the previous formation', () => matchPrevious(i), i === 0)}
-              {item('Line everyone up', () => resetLine(i))}
-              {item('Move earlier', () => moveFormation(i, i - 1), i === 0)}
-              {item('Move later', () => moveFormation(i, i + 1), i === n - 1)}
-              {item('Delete', () => deleteFormation(i), n === 1, true)}
-            </div>
-          </>
+          <Menu x={menu.x} y={menu.y} label={`Actions for ${formationLabel(project.formations[i], i).title}`} onClose={() => setMenu(null)}>
+            {item('Duplicate', () => addFormation(i))}
+            {item(i ? `Reset positions to ${formationLabel(project.formations[i - 1], i - 1).title}` : 'Reset positions to the previous formation', () => matchPrevious(i), i === 0)}
+            {item('Line everyone up', () => resetLine(i))}
+            {item('Move earlier', () => moveFormation(i, i - 1), i === 0)}
+            {item('Move later', () => moveFormation(i, i + 1), i === n - 1)}
+            {item('Delete', () => deleteFormation(i), n === 1, true)}
+          </Menu>
+        )
+      })()}
+      {soundMenu && project.audio && (() => {
+        const item = (label: string, run: () => void, danger = false) => (
+          <button role="menuitem" className={danger ? 'btn-danger' : ''} onClick={() => { setSoundMenu(null); run() }}>{label}</button>
+        )
+        return (
+          <Menu x={soundMenu.x} y={soundMenu.y} label={`Settings for ${project.audio.name}`} onClose={() => setSoundMenu(null)}>
+            <label className="menu-range">Volume
+              <input type="range" min={0} max={1} step={0.05} value={volume} onChange={e => onVolume(Number(e.target.value))} aria-valuetext={`${Math.round(volume * 100)} percent`} />
+              <output>{Math.round(volume * 100)}%</output>
+            </label>
+            {item('Replace with another song or video…', onPickAudio)}
+            {hasVideo && (project.audio.wave
+              ? item("Draw the waveform from the video's own sound", () => edit(p => { delete p.audio!.wave }))
+              : item('Draw the waveform from a song file…', onPickWave))}
+            {item(hasVideo ? 'Remove video' : 'Remove music', onRemoveAudio, true)}
+          </Menu>
         )
       })()}
     </footer>
+  )
+}
+
+/** A small menu that opens upwards from a point, since the timeline sits at the bottom of the window. Arrow keys move between its controls; Escape or a click outside closes it. */
+function Menu({ x, y, label, onClose, children }: { x: number; y: number; label: string; onClose: () => void; children: ReactNode }) {
+  const controls = 'button:not(:disabled), input'
+  return (
+    <>
+      <div className="ctx-shade" onPointerDown={onClose} onContextMenu={e => { e.preventDefault(); onClose() }} />
+      <div className="menu-list ctx" role="menu" aria-label={label}
+        style={{ left: Math.max(8, Math.min(x, innerWidth - 290)), bottom: innerHeight - y }}
+        ref={el => { if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>(controls)?.focus() }}
+        onKeyDown={e => {
+          e.stopPropagation()
+          if (e.key === 'Escape') return onClose()
+          const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+          if (!dir) return
+          e.preventDefault()
+          const all = [...e.currentTarget.querySelectorAll<HTMLElement>(controls)]
+          all[(all.indexOf(document.activeElement as HTMLElement) + dir + all.length) % all.length]?.focus()
+        }}>
+        {children}
+      </div>
+    </>
   )
 }

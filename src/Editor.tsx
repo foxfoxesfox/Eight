@@ -4,7 +4,7 @@ import { loadAudio, loadProject, loadWave, saveAudio, saveProject, saveWave } fr
 import { centroid, clashes, DANCER_COLORS, formationLabel, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
 import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, moveFormation, removeDancers, resizeStage, useEditor } from './store'
 import { describe, MarkIcon, StageView, type PathMode } from './Stage'
-import { recordVideo } from './video'
+import { recordVideo, soundForExport, type ExportSound } from './video'
 import { Timeline } from './Timeline'
 import { download, Field, go, Icon, savePng, ThemeToggle } from './ui'
 
@@ -318,13 +318,14 @@ function Workspace({ project }: { project: Project }) {
     () => (current > 0 && formations[current] ? clashes(formations[current - 1].positions, formations[current].positions, dancers.filter(isPerson).map(d => d.id)) : []),
     [formations, current, dancers],
   )
-  const exportVideo = async (options: { picture: boolean; mirror: boolean; height: number }) => {
+  const exportVideo = async (options: { picture: boolean; mirror: boolean; height: number }, sound?: ExportSound) => {
     setPlaying(false)
     const ctl = (stopVideo.current = new AbortController())
     dropVideo()
     setVideo(0)
     try {
-      const blob = await recordVideo(project, project.audio ? await loadAudio(project.id) : undefined, setVideo, ctl.signal, options)
+      const { blob, silent } = await recordVideo(project, sound, setVideo, ctl.signal, options)
+      if (silent) setNotice('This browser did not let Eight record the sound, so the video is silent. Exporting again usually fixes it.')
       setVideoFile({ url: URL.createObjectURL(blob), name: `${fileName}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}` })
     } catch {
       if (!ctl.signal.aborted) setImportError('The video could not be made in this browser.')
@@ -394,7 +395,8 @@ function Workspace({ project }: { project: Project }) {
           if (kind === 'file') download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))
           else if (kind === 'picture') savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${formationLabel(here, view.index).title}.png`).catch(() => setImportError('The picture could not be made in this browser.'))
           else if (kind === 'pdf') go(`#/r/${project.id}/print`)
-          else exportVideo(options)
+          // The sound is set up here, inside the click, because Safari records sound only when a click started it.
+          else exportVideo(options, song.current && !audioMissing ? soundForExport(song.current.src, hasVideo) : undefined)
         }} />
       {notice && <p className="toast is-info" role="status">{notice} <button className="link" onClick={() => setNotice('')}>Dismiss</button></p>}
       {importError && <p className="toast" role="alert">{importError} <button className="link" onClick={() => setImportError('')}>Dismiss</button></p>}
@@ -640,7 +642,7 @@ function ExportDialog({ box, hasVideo, showVideo, mirrored, busy, length, format
   )
   return (
     <dialog className="dialog" ref={box} aria-labelledby="export-title" onClick={e => { if (e.target === e.currentTarget) e.currentTarget.close() }}>
-      <form method="dialog" onSubmit={() => { const options = { picture: hasVideo && picture, mirror, height }; setTimeout(() => onExport(kind, options)) }}>
+      <form method="dialog" onSubmit={() => onExport(kind, { picture: hasVideo && picture, mirror, height })}>
         <h2 id="export-title">Export</h2>
         {choice('file', 'Routine file', 'Everything except the music or video, to back up or send to someone who uses Eight.')}
         {choice('picture', 'Picture', `${formation} as it is on the stage now, as a PNG image.`)}

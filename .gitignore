@@ -31,6 +31,7 @@ Thumbs.db
 *.eight.json
 eight-backup*.json
 !marketing/**
+!src/fixtures/**
 
 # Research notes, keys and certificates
 research/

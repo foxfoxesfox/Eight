@@ -415,3 +415,20 @@ input[type='number'] { appearance: textfield; }
 
 /* Shown while a file is dragged over the editor. */
 .drop-hint { position: fixed; inset: 12px; z-index: 30; display: grid; place-items: center; border: 3px dashed var(--ink); border-radius: 12px; background: color-mix(in srgb, var(--paper) 88%, transparent); font-size: 22px; font-weight: 800; pointer-events: none; }
+
+/* The sound track: its label, its empty slot, and the volume control in its menu. */
+.sound-bar { position: absolute; top: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding-inline: 8px; pointer-events: none; }
+.sound-bar > * { pointer-events: auto; }
+.sound-bar p { font-size: 13.5px; color: var(--mute); }
+.sound-tag { display: inline-flex; align-items: center; gap: 6px; max-width: 340px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px -4px #00000066; }
+.sound-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sound-tag em { font-style: normal; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+.sound-tag:hover:not(:disabled), .sound-tag:focus-visible { border-color: var(--ink); }
+.sound-tag .icon { flex: none; }
+.sound-add { position: absolute; top: 4px; bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 2px dashed var(--line); border-radius: 8px; background: none; color: var(--mute); font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.sound-add span { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.sound-add:hover:not(:disabled), .sound-add:focus-visible { border-color: var(--ink); color: var(--ink); }
+.menu-list > .menu-range { display: flex; align-items: center; gap: 10px; cursor: default; }
+.menu-list > .menu-range:hover { background: none; }
+.menu-range input { flex: 1; min-width: 0; padding: 0; border: 0; background: none; }
+.menu-range output { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; color: var(--mute); }

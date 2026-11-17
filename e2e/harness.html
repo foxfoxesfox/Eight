@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><title>Eight checks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --ink: #17171a; --paper: #f4f2ee; --mute: #5c5850; --line: #cfcac0; --pass: #2f7d32; --bad: #a3231a; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/1.4 system-ui, sans-serif; color: var(--ink); background: var(--paper); height: 100vh; display: grid; grid-template-columns: 380px 1fr; overflow: hidden; }
+  aside { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+  header { padding: 16px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; }
+  #summary { font-weight: 700; }
+  #summary.bad { color: var(--bad); } #summary.good { color: var(--pass); }
+  button { justify-self: start; font: inherit; font-weight: 700; padding: 7px 16px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); cursor: pointer; }
+  #log { flex: 1; overflow: auto; padding: 12px 16px; white-space: pre-wrap; font: 12.5px/1.5 ui-monospace, monospace; }
+  main { position: relative; overflow: hidden; background: #ddd8cf; }
+  /* The app keeps its laptop-sized layout and is shrunk to fit, so the checks see the same screen everywhere. */
+  #app { position: absolute; left: 16px; top: 16px; width: 1280px; height: 800px; border: 0; transform-origin: 0 0; box-shadow: 0 8px 30px -12px #0006; background: #fff; }
+</style>
+<aside>
+  <header>
+    <h1>Eight end-to-end checks</h1>
+    <p id="summary">Running… about two minutes.</p>
+    <button onclick="location.reload()">Run again</button>
+  </header>
+  <pre id="log"></pre>
+</aside>
+<main><iframe id="app" title="The app under test"></iframe></main>
+<script>
+  const fit = () => { const m = document.querySelector('main'); const k = Math.min(1, (m.clientWidth - 32) / 1280, (m.clientHeight - 32) / 800); document.getElementById('app').style.transform = `scale(${k})` }
+  addEventListener('resize', fit); fit()
+  const s = document.createElement('script'); s.type = 'module'; s.src = '/__t/tests.js?' + Date.now(); document.body.append(s)
+</script>
