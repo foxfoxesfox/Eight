@@ -28,7 +28,10 @@ interface Props {
   onLoop: (on: boolean) => void
   onSeek: (t: number) => void
   onToggle: () => void
+  /** Adds a formation at the end. */
   onAddFormation: () => void
+  /** A song or video is being read in. */
+  reading: boolean
   /** Puts the playhead on the current formation after the formations themselves changed. */
   onFollow: () => void
   onPickAudio: () => void
@@ -37,7 +40,7 @@ interface Props {
   onPickWave: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, volume, onVolume, loop, onLoop, onSeek, onToggle, onAddFormation, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, volume, onVolume, loop, onLoop, onSeek, onToggle, onAddFormation, reading, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
   /** Seconds into the timeline where the drawn waveform starts. */
   const waveAt = project.audio?.wave?.offset ?? 0
   /** The right-click menu: which formation it is for and where it was opened. */
@@ -45,6 +48,8 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
   const [pps, setPps] = useState(48) // pixels per second
   const counts = project.timeUnit === 'counts'
   const secs = (n: number) => span(project, n)
+  /** The longest of `options` that fits in `px` at about `charW` pixels a character; nothing if none does. The full text is always in the tooltip. */
+  const fit = (px: number, charW: number, ...options: string[]) => options.find(t => t.length * charW + 30 <= px) ?? ''
   const [snap, setSnap] = useState<Snap>(counts ? 'count' : 'off')
   // Timing in counts means working on the beat grid, so snapping comes on with it.
   useEffect(() => setSnap(counts ? 'count' : 'off'), [counts])
@@ -65,7 +70,8 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
   const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, ...resize(f, trim.edge, trim.value) } : f)) : project.formations
   const starts = startTimes(formations)
   const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
-  const width = Math.max(view.width, (end + 3) * pps)
+  // Room after the end for the Add formation slot at any zoom.
+  const width = Math.max(view.width, end * pps + Math.max(3 * pps, 170))
 
   useLayoutEffect(() => {
     const el = scroller.current!
@@ -191,7 +197,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
     <footer className="deck">
       <div className="deck-bar">
         <button className="btn btn-play" onClick={onToggle} aria-label={playing ? 'Stop' : 'Play from the playhead'}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Stop' : 'Play'}</button>
-        <p className="deck-now"><strong>{clock(time)}</strong><span>of {clock(end)} · {formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / perBar) + 1}, count {(beatNow % perBar) + 1}</span></p>
+        <p className="deck-now" title={`${formationLabel(formations[index], index).title}, bar ${Math.floor(beatNow / perBar) + 1}, count ${(beatNow % perBar) + 1}`}><strong>{clock(time)}</strong><span><span>of {clock(end)}</span><span>{formationLabel(formations[index], index).title} · bar {Math.floor(beatNow / perBar) + 1}, count {(beatNow % perBar) + 1}</span></span></p>
         <div className="deck-tools">
           <label className="check slider">Speed
             <input type="range" min={0.25} max={1.5} step={0.05} value={speed} onChange={e => onSpeed(Number(e.target.value))} onDoubleClick={() => onSpeed(1)} aria-valuetext={`${speed} times normal speed`} title="Drag to slow down or speed up. Double-click for normal speed." />
@@ -215,10 +221,12 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
             <button className="btn btn-line" onClick={() => setPps(Math.max(4, Math.min(400, (view.width - 24) / (end + 1))))}>Fit</button>
             <button className="btn btn-line" onClick={() => zoom(1.5)} aria-label="Zoom in"><Icon name="plus" /></button>
           </span>
-          {project.audio
-            ? <button className="btn btn-line" onClick={onRemoveAudio} title={project.audio.name}>{hasVideo ? 'Remove video' : 'Remove music'}</button>
-            : <button className="btn btn-line" onClick={onPickAudio}><Icon name="upload" />Add music or video</button>}
-          <button className="btn btn-line" onClick={onAddFormation} disabled={playing}><Icon name="plus" />Add formation</button>
+          {project.audio ? (
+            <>
+              <button className="btn btn-line" onClick={onPickAudio} disabled={reading} title={`Now: ${project.audio.name}. Choose another song or video, or drop one anywhere on the page.`}><Icon name="upload" />{hasVideo ? 'Replace video' : 'Replace music'}</button>
+              <button className="btn btn-line" onClick={onRemoveAudio} disabled={reading}>Remove</button>
+            </>
+          ) : <button className="btn btn-line" onClick={onPickAudio} disabled={reading} title="Or drop a song or video anywhere on the page"><Icon name="upload" />Add music or video</button>}
         </div>
       </div>
 
@@ -233,25 +241,33 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
               const hex = gelOf(f, i)
               const move = f.transition
               const label = formationLabel(f, i)
+              const px = (move + f.hold) * pps
+              const title = fit(px, 9.5, label.title, String(i + 1).padStart(2, '0'))
               return (
                 <li key={f.id}>
                   <div className={`clip${i === index ? ' is-current' : ''}`} onContextMenu={e => { e.preventDefault(); if (!playing) { onSeek(starts[i]); setMenu({ i, x: e.clientX, y: e.clientY }) } }} style={{ left: (starts[i] - move) * pps, width: (move + f.hold) * pps, background: hex, color: inkOn(hex) }}>
-                    <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])}>
-                      <b>{label.title}</b>
-                      {label.sub && <i>{label.sub}</i>}
+                    <button className="clip-body" aria-current={i === index} onClick={() => onSeek(starts[i])} aria-label={label.title}
+                      title={`${label.title}${label.sub ? ` (${label.sub})` : ''}: ${move > 0 ? `${secs(move)} moving in, ` : ''}${secs(f.hold)} in formation`}>
+                      <b>{title}</b>
+                      {label.sub && title === label.title && <i>{fit(px, 7.5, label.sub)}</i>}
                     </button>
                     {move > 0 && (
                       <button className="clip-move" style={{ width: move * pps }} onClick={() => onSeek(starts[i] - move)} aria-label={`Moving into ${label.title}, ${secs(move)}`}>
-                        {secs(move)} moving in
+                        {fit(move * pps, 7, `${secs(move)} moving in`, secs(move))}
                       </button>
                     )}
-                    <span className="clip-hold" style={{ left: move * pps }}>{secs(f.hold)} in formation</span>
+                    <span className="clip-hold" style={{ left: move * pps }}>{fit(f.hold * pps - 4, 7, `${secs(f.hold)} in formation`, secs(f.hold))}</span>
                     {handle(i, 'transition')}
                     {handle(i, 'hold')}
                   </div>
                 </li>
               )
             })}
+            <li>
+              <button className="clip-add" style={{ left: totalTime(formations) * pps + 8 }} onClick={onAddFormation} disabled={playing} title="Adds a formation at the end, starting as a copy of the last one">
+                <Icon name="plus" />Add formation
+              </button>
+            </li>
           </ol>
 
           <div className="wave">
@@ -262,7 +278,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
                 </>
               : <p style={{ left: view.left, width: view.width }}>
                   {audioMissing ? <>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song or video again</button></>
-                    : <>No music yet. <button className="link" onClick={onPickAudio}>Add a song or a video</button> to line formations up with what you hear. Songs up to 60 MB; videos of any size your device has room for.</>}
+                    : <>No music yet. <button className="link" onClick={onPickAudio}>Add a song or a video</button>, or drop one here, to line formations up with what you hear. Songs up to 60 MB; videos of any size your device has room for.</>}
                 </p>}
           </div>
 

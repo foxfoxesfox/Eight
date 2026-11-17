@@ -29,7 +29,7 @@ How to use it, and answers to common questions: [docs/GUIDE.md](docs/GUIDE.md), 
 - Loop one formation, and slide the playback speed anywhere from 0.25× to 1.5×.
 
 **Music and video**
-- Add a song (MP3, WAV, M4A, up to 60 MB) and see its waveform. A volume slider sits beside the speed slider.
+- Add a song (MP3, WAV, M4A, up to 60 MB) with the button or by dropping the file on the page, and see its waveform. A volume slider sits beside the speed slider.
 - Or add a video (MP4, MOV, WebM): it plays beside the stage in step with the formations, and can be mirrored.
 - A video over 300 MB has no waveform of its own; add its song file and the waveform is drawn from that, with an offset to line it up.
 

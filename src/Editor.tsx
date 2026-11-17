@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { clock, MAX_AUDIO_BYTES, MAX_WAVEFORM_BYTES, readAudio, videoLength } from './audio'
+import { clock, MAX_AUDIO_BYTES, MAX_WAVEFORM_BYTES, mediaLength, readAudio } from './audio'
 import { loadAudio, loadProject, loadWave, saveAudio, saveProject, saveWave } from './db'
 import { centroid, clashes, DANCER_COLORS, formationLabel, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
 import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, moveFormation, removeDancers, resizeStage, useEditor } from './store'
@@ -8,6 +8,7 @@ import { recordVideo } from './video'
 import { Timeline } from './Timeline'
 import { download, Field, go, Icon, savePng, ThemeToggle } from './ui'
 
+const MEDIA_TYPES: Record<string, string> = { mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', flac: 'audio/flac' }
 const pad = (n: number) => String(n).padStart(2, '0')
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
@@ -66,6 +67,10 @@ function Workspace({ project }: { project: Project }) {
   const [importError, setImportError] = useState('')
   /** Something worth knowing that is not an error, such as a video too big for a waveform. */
   const [notice, setNotice] = useState('')
+  /** Name of a song or video being read in, while it is. */
+  const [reading, setReading] = useState('')
+  /** A file is being dragged over the editor. */
+  const [dropping, setDropping] = useState(false)
   const exportBox = useRef<HTMLDialogElement>(null)
   const [paths, setPaths] = useState<PathMode>('selected')
   const [speed, setSpeed] = useState(1)
@@ -116,6 +121,12 @@ function Workspace({ project }: { project: Project }) {
     const video = blob.type.startsWith('video/')
     const el = video ? Object.assign(document.createElement('video'), { playsInline: true, preload: 'auto' }) : new Audio()
     el.src = URL.createObjectURL(blob)
+    // A routine saved with a wrong length (a sound track some browsers decode short) is put right from what actually plays.
+    el.onloadedmetadata = () => {
+      const d = round(el.duration)
+      const saved = useEditor.getState().project?.audio?.duration
+      if (Number.isFinite(d) && saved !== undefined && Math.abs(d - saved) > 0.05) edit(p => { if (p.audio) p.audio.duration = d })
+    }
     if (video) screen.current?.append(el)
     song.current = el
     setHasVideo(video)
@@ -141,16 +152,25 @@ function Workspace({ project }: { project: Project }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id, !project.audio, !project.audio?.wave, songRev])
 
-  const addAudio = async (file?: File) => {
-    if (!file) return
+  const addAudio = async (picked?: File) => {
+    if (!picked || reading) return
+    setReading(picked.name)
     try {
-      const video = file.type.startsWith('video/')
-      if (!video && !file.type.startsWith('audio/')) throw new Error('That file is not music or video. Choose an MP3, WAV or M4A song, or an MP4, MOV or WebM video.')
+      // Some systems hand over a file with no type, mostly when it is dropped; the name's ending says what it is.
+      const type = picked.type || MEDIA_TYPES[picked.name.split('.').pop()!.toLowerCase()] || ''
+      const file = picked.type ? picked : new File([picked], picked.name, { type })
+      const video = type.startsWith('video/')
+      if (!video && !type.startsWith('audio/')) throw new Error('That file is not music or video. Choose an MP3, WAV or M4A song, or an MP4, MOV or WebM video.')
       if (!video && file.size > MAX_AUDIO_BYTES) throw new Error('That song is larger than 60 MB. Try a shorter or more compressed file.')
-      const { duration, peaks } = await readAudio(file).catch(async () => {
+      // No sound it can read, or too big to draw: a video keeps its picture, with an empty waveform.
+      const { duration, peaks } = await readAudio(file).catch(() => {
         if (!video) throw new Error('This browser could not read that audio file. Try an MP3 or WAV version.')
-        // No sound it can read, or too big to draw: keep the picture, with an empty waveform.
-        return { duration: await videoLength(file).catch(() => { throw new Error('This browser could not read that video. Try an MP4 version.') }), peaks: new Float32Array(0) }
+        return { duration: 0, peaks: new Float32Array(0) }
+      })
+      // The player's length, not the decoded sound's: some browsers decode a video's sound track short.
+      const length = await mediaLength(file).catch(() => {
+        if (!duration) throw new Error(video ? 'This browser could not read that video. Try an MP4 version.' : 'This browser could not read that audio file. Try an MP3 or WAV version.')
+        return duration
       })
       // Ask the browser how much room is left before trying, so a file that cannot fit says so plainly.
       const room = await navigator.storage?.estimate?.().catch(() => undefined)
@@ -159,11 +179,13 @@ function Workspace({ project }: { project: Project }) {
       if (file.size > free) throw new Error(`That file is ${mb(file.size)}, and this browser has ${mb(free)} of storage left for Eight. Free up disk space or use a smaller file.`)
       await saveAudio(project.id, file).catch(() => { throw new Error('This browser does not have enough storage space left for that file.') })
       decoded.current = peaks
-      edit(p => { p.audio = { name: file.name, duration: round(duration) } })
+      edit(p => { p.audio = { name: file.name, duration: round(length) } })
       setSongRev(r => r + 1)
       setNotice(!peaks.length ? (file.size > MAX_WAVEFORM_BYTES ? `This video is ${mb(file.size)}. Over 300 MB there is no waveform from the video itself, but it plays, stays in step and exports as usual. Add its song under Routine to get a waveform.` : 'No sound could be read from this video, so it has no waveform. It still plays in step. Add its song under Routine to get one.') : '')
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'That song could not be added.')
+    } finally {
+      setReading('')
     }
   }
   /** Uses a song file's waveform for the routine's video. Nothing new plays: the video stays the sound and the clock. */
@@ -335,7 +357,19 @@ function Workspace({ project }: { project: Project }) {
   const lengthField = { type: 'number', max: 600, step: counts ? 0.25 : 0.1, suffix: counts ? 'counts' : 's' } as const
 
   return (
-    <div className="editor" style={{ '--gel': gel, '--wash': wash, '--gel-ink': inkOn(gel) } as CSSProperties}>
+    <div className="editor" style={{ '--gel': gel, '--wash': wash, '--gel-ink': inkOn(gel) } as CSSProperties}
+      onDragOver={e => { if (!e.dataTransfer.types.includes('Files')) return; e.preventDefault(); setDropping(true) }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false) }}
+      onDrop={e => {
+        if (!e.dataTransfer.files.length) return
+        e.preventDefault()
+        setDropping(false)
+        const f = e.dataTransfer.files[0]
+        if (/\.json$/i.test(f.name)) importFile(f)
+        else addAudio(f)
+      }}>
+      {dropping && <div className="drop-hint" aria-hidden="true">Drop a song or video to use it in this routine</div>}
+      {reading && <p className="toast is-info" role="status">Reading {reading}…</p>}
       <header className="bar">
         <a className="wordmark" href="#/routines" aria-label="Eight, back to your routines">Eight</a>
         <div className="bar-title">
@@ -522,7 +556,7 @@ function Workspace({ project }: { project: Project }) {
 
       <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing} hasVideo={hasVideo}
         speed={speed} onSpeed={setSpeed} volume={volume} onVolume={setVolume} loop={loop} onLoop={setLoop}
-        onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(); follow() }} onFollow={follow}
+        onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(useEditor.getState().project!.formations.length - 1); follow() }} reading={!!reading} onFollow={follow}
         onPickAudio={() => audioRef.current?.click()} onPickWave={() => waveRef.current?.click()} onRemoveAudio={removeAudio} />
       <input ref={waveRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addWave(e.target.files?.[0]); e.target.value = '' }} />
       <input ref={audioRef} type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.mov,.webm" hidden onChange={e => { addAudio(e.target.files?.[0]); e.target.value = '' }} />

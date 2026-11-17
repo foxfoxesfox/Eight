@@ -12,14 +12,21 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - A storage check before saving a song or video, and plain messages about file limits.
 - README banner, poster, a 20-second promo video and this changelog.
 - A volume slider for the song or video.
+- Drag a song, video or routine file onto the editor to add or open it. A message shows while a large file is read, and "Replace" swaps the song or video without removing it first.
 - A user guide and FAQ in `docs/GUIDE.md`, shown inside the app on a Help page linked from every screen.
 - The app asks the browser to keep its saved routines when disk space runs low.
 
 **Changed**
+- "Add formation" is a slot at the end of the timeline and adds after the last formation (Duplicate in the right-click menu adds after any other).
+- Formation bars too narrow for their name show their number; the name and lengths are in the tooltip. The time readout no longer cuts off the formation name.
 - Playback speed is a slider from 0.25× to 1.5× (was a three-option menu), and dragging it no longer restarts the song.
 - Video export is 1080p by default (was 720p).
 - A finished video is offered as a Save link, because browsers often block a download that starts by itself.
 - Videos are no longer refused for size; above 300 MB they load without a waveform.
+
+**Fixed**
+- A video or song could get a length shorter than the file in some browsers, cutting the timeline off early. The length now comes from the browser's player, and routines saved with a wrong length correct themselves when opened.
+- A selected dancer or prop in the list lost its name while the pointer was over it.
 
 ## 16 November 2026: phase 3
 

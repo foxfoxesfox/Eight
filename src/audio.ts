@@ -4,8 +4,8 @@ export const MAX_AUDIO_BYTES = 60 * 1024 * 1024
 // shortcut: drawing a waveform means reading the whole file into memory, so files over 300 MB go without one; read the sound in pieces to lift that.
 export const MAX_WAVEFORM_BYTES = 300 * 1024 * 1024
 
-/** Length in seconds of a video, for one whose sound could not be read (or that has none). */
-export function videoLength(blob: Blob): Promise<number> {
+/** Length in seconds of a song or video as the browser's own player reports it: the length that actually plays. */
+export function mediaLength(blob: Blob): Promise<number> {
   return new Promise((done, fail) => {
     const v = document.createElement('video')
     const end = (ok: boolean) => { URL.revokeObjectURL(v.src); ok && Number.isFinite(v.duration) ? done(v.duration) : fail(new Error('unreadable video')) }

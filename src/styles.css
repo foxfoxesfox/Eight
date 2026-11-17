@@ -175,9 +175,10 @@ input[type='number'] { appearance: textfield; }
 /* Timeline */
 .deck { background: var(--paper); border-top: 1px solid var(--line); padding: 12px 20px 16px; }
 .deck-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-.deck-now { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.deck-now { display: flex; align-items: center; gap: 12px; flex: none; max-width: 360px; min-width: 0; }
 .deck-now strong { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; flex: none; }
-.deck-now span { color: var(--mute); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.deck-now > span { display: grid; min-width: 0; color: var(--mute); line-height: 1.3; }
+.deck-now > span > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .deck-tools { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .deck-tools .btn { padding: 6px 12px; }
 .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
@@ -406,3 +407,11 @@ input[type='number'] { appearance: textfield; }
 .help details[open] summary { margin-bottom: 4px; }
 .help ol { list-style: decimal; }
 .help ul { list-style: disc; }
+
+/* The slot after the last formation that adds the next one. */
+.clip-add { position: absolute; top: 0; bottom: 0; width: 150px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 2px dashed var(--line); border-radius: 4px 4px 12px 12px; background: none; color: var(--mute); font-weight: 700; cursor: pointer; }
+.clip-add:hover:not(:disabled), .clip-add:focus-visible { border-color: var(--ink); color: var(--ink); }
+.clip-add:disabled { opacity: 0.4; cursor: default; }
+
+/* Shown while a file is dragged over the editor. */
+.drop-hint { position: fixed; inset: 12px; z-index: 30; display: grid; place-items: center; border: 3px dashed var(--ink); border-radius: 12px; background: color-mix(in srgb, var(--paper) 88%, transparent); font-size: 22px; font-weight: 800; pointer-events: none; }
