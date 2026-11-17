@@ -196,6 +196,25 @@ async function run() {
     key('Escape'); await sleep(80); btn('Line', $('.rail-right')).click(); await sleep(100); btn('Mirror', $('.rail-right')).click(); await sleep(200)
     return ok($('.warn') && $$('.floor .dancer.is-clash').length >= 2, { warn: $('.warn')?.textContent.slice(0, 80) })
   })
+  await test('right-click a dancer or prop: colour, offstage, back to the last spot, remove', async () => {
+    const out = {}
+    const open = async el => { const [x, y] = mid(el); el.dispatchEvent(new W.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y })); return until(() => $('.menu-list.ctx')) }
+    const close = m => m.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    key('Escape'); await sleep(60)
+    let m = await open(people()[2]); out.items = [...m.querySelectorAll('[role=menuitem]')].map(b => b.textContent); out.selectsIt = details() === 'Dancer'
+    m.querySelectorAll('.menu-swatches button')[8].click(); await sleep(120); out.coloured = !!people()[2].querySelector('[fill="#e5484d"]') && !$('.menu-list.ctx')
+    m = await open(people()[2]); btn('Offstage in this formation', m).click(); await sleep(120); out.off = people()[2].classList.contains('is-off')
+    m = await open(people()[2]); btn('Back on stage in this formation', m).click(); await sleep(120); out.on = !people()[2].classList.contains('is-off')
+    const before = people()[2].getAttribute('transform')
+    m = await open(people()[2]); [...m.querySelectorAll('button')].find(b => b.textContent.startsWith('Back to where')).click(); await sleep(120); out.backToLast = people()[2].getAttribute('transform') !== before
+    key('a', { ctrlKey: true }); await sleep(80); m = await open(people()[0]); out.actsOnSelection = !!btn(`Remove ${people().length} from routine`, m); close(m); await sleep(80)
+    m = await open($$('.dancer-list')[1].querySelector('button')); btn('Remove prop', m).click(); await sleep(150); out.propRemoved = !$('.floor .is-prop')
+    btn('Undo').click(); await sleep(150); out.propBack = !!$('.floor .is-prop')
+    key('Escape'); await sleep(60); const n = people().length
+    m = await open($$('.dancer-list')[0].querySelectorAll('button')[n - 1]); btn('Remove from routine', m).click(); await sleep(150); out.removed = people().length === n - 1
+    btn('Undo').click(); await sleep(150); out.undone = people().length === n
+    return ok(Object.entries(out).every(([k, v]) => k === 'items' || v), out)
+  })
   await test('formation right-click menu: duplicate, reset, line up, move, delete', async () => {
     const menu = async i => { clips()[i].dispatchEvent(new W.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 500 })); return until(() => $('.menu-list.ctx')) }
     const out = {}

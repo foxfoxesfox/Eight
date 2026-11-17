@@ -138,3 +138,27 @@ export function download(name: string, data: BlobPart, type = 'application/json'
   // Not at once: some browsers drop a download whose address is withdrawn before they have started reading it.
   setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
 }
+
+/** A small menu at a point: it opens upwards in the lower half of the window and downwards in the upper half. Arrow keys move between its controls; Escape or a click outside closes it. */
+export function Menu({ x, y, label, onClose, children }: { x: number; y: number; label: string; onClose: () => void; children: ReactNode }) {
+  const controls = 'button:not(:disabled), input'
+  return (
+    <>
+      <div className="ctx-shade" onPointerDown={onClose} onContextMenu={e => { e.preventDefault(); onClose() }} />
+      <div className="menu-list ctx" role="menu" aria-label={label}
+        style={{ left: Math.max(8, Math.min(x, innerWidth - 290)), ...(y > innerHeight / 2 ? { bottom: innerHeight - y } : { top: y }) }}
+        ref={el => { if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>(controls)?.focus() }}
+        onKeyDown={e => {
+          e.stopPropagation()
+          if (e.key === 'Escape') return onClose()
+          const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+          if (!dir) return
+          e.preventDefault()
+          const all = [...e.currentTarget.querySelectorAll<HTMLElement>(controls)]
+          all[(all.indexOf(document.activeElement as HTMLElement) + dir + all.length) % all.length]?.focus()
+        }}>
+        {children}
+      </div>
+    </>
+  )
+}

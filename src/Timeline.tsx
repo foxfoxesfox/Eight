@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
 import { formationLabel, gelOf, inkOn, span, startTimes, tidy, totalTime, type Formation, type Project } from './model'
 import { addFormation, deleteFormation, edit, matchPrevious, moveFormation, resetLine } from './store'
-import { Icon } from './ui'
+import { Icon, Menu } from './ui'
 
 const MIN_HOLD = 0.1
 
@@ -324,26 +324,3 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
   )
 }
 
-/** A small menu that opens upwards from a point, since the timeline sits at the bottom of the window. Arrow keys move between its controls; Escape or a click outside closes it. */
-function Menu({ x, y, label, onClose, children }: { x: number; y: number; label: string; onClose: () => void; children: ReactNode }) {
-  const controls = 'button:not(:disabled), input'
-  return (
-    <>
-      <div className="ctx-shade" onPointerDown={onClose} onContextMenu={e => { e.preventDefault(); onClose() }} />
-      <div className="menu-list ctx" role="menu" aria-label={label}
-        style={{ left: Math.max(8, Math.min(x, innerWidth - 290)), bottom: innerHeight - y }}
-        ref={el => { if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>(controls)?.focus() }}
-        onKeyDown={e => {
-          e.stopPropagation()
-          if (e.key === 'Escape') return onClose()
-          const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-          if (!dir) return
-          e.preventDefault()
-          const all = [...e.currentTarget.querySelectorAll<HTMLElement>(controls)]
-          all[(all.indexOf(document.activeElement as HTMLElement) + dir + all.length) % all.length]?.focus()
-        }}>
-        {children}
-      </div>
-    </>
-  )
-}

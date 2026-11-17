@@ -6,7 +6,7 @@ import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, m
 import { describe, MarkIcon, StageView, type PathMode } from './Stage'
 import { recordVideo, soundForExport, type ExportSound } from './video'
 import { Timeline } from './Timeline'
-import { download, Field, go, Icon, savePng, ThemeToggle } from './ui'
+import { download, Field, go, Icon, Menu, savePng, ThemeToggle } from './ui'
 
 const MEDIA_TYPES: Record<string, string> = { mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', flac: 'audio/flac' }
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -71,6 +71,8 @@ function Workspace({ project }: { project: Project }) {
   const [reading, setReading] = useState('')
   /** A file is being dragged over the editor. */
   const [dropping, setDropping] = useState(false)
+  /** The right-click menu for dancers and props: who it acts on and where it opened. */
+  const [markMenu, setMarkMenu] = useState<{ ids: string[]; x: number; y: number } | null>(null)
   const exportBox = useRef<HTMLDialogElement>(null)
   const [paths, setPaths] = useState<PathMode>('selected')
   const [speed, setSpeed] = useState(1)
@@ -343,12 +345,20 @@ function Workspace({ project }: { project: Project }) {
   /** Seconds in one of whatever the length fields show. */
   const unit = counts ? 60 / bpm : 1
   const shown = (secs: number) => (counts ? +(secs / unit).toFixed(2) : secs)
+  /** Right-clicking someone in a selection of several acts on all of them; anyone else becomes the selection. */
+  const openMarkMenu = (id: string, x: number, y: number) => {
+    if (!editable) return
+    const ids = selected.includes(id) && selected.length > 1 ? selected : [id]
+    if (ids.length === 1) select(ids)
+    setMarkMenu({ ids, x, y })
+  }
   const list = (ds: Dancer[]) => (
     <ul className="dancer-list">
       {ds.map(d => (
         <li key={d.id}>
           <button className={selected.includes(d.id) ? 'is-selected' : ''} aria-pressed={selected.includes(d.id)} disabled={!editable}
-            onClick={e => select(e.shiftKey || e.ctrlKey || e.metaKey ? (selected.includes(d.id) ? selected.filter(s => s !== d.id) : [...selected, d.id]) : [d.id])}>
+            onClick={e => select(e.shiftKey || e.ctrlKey || e.metaKey ? (selected.includes(d.id) ? selected.filter(s => s !== d.id) : [...selected, d.id]) : [d.id])}
+            onContextMenu={e => { e.preventDefault(); openMarkMenu(d.id, e.clientX, e.clientY) }}>
             <MarkIcon d={d} /><span>{d.name}</span>
           </button>
         </li>
@@ -369,6 +379,31 @@ function Workspace({ project }: { project: Project }) {
         if (/\.json$/i.test(f.name)) importFile(f)
         else addAudio(f)
       }}>
+      {markMenu && (() => {
+        const { ids } = markMenu
+        const who = dancers.filter(d => ids.includes(d.id))
+        const pos = formations[current].positions
+        const before = formations[current - 1]?.positions
+        const off = ids.every(id => pos[id]?.offstage)
+        const props = who.every(d => d.prop)
+        const name = ids.length > 1 ? `${ids.length} selected` : who[0]?.name ?? ''
+        const close = () => setMarkMenu(null)
+        const item = (label: string, run: () => void, danger = false) => (
+          <button role="menuitem" className={danger ? 'btn-danger' : ''} onClick={() => { close(); run() }}>{label}</button>
+        )
+        return (
+          <Menu x={markMenu.x} y={markMenu.y} label={`Actions for ${name}`} onClose={close}>
+            <div className="menu-swatches" role="group" aria-label="Colour">
+              {DANCER_COLORS.map((c, i) => <button key={c} type="button" style={{ background: c }} aria-label={`Colour ${i + 1}`} onClick={() => { close(); edit(p => { for (const d of p.dancers) if (ids.includes(d.id)) d.color = c }) }} />)}
+            </div>
+            {item(off ? 'Back on stage in this formation' : 'Offstage in this formation', () => edit(p => { for (const id of ids) { const q = p.formations[current].positions[id]; if (!q) continue; if (off) delete q.offstage; else q.offstage = true } }))}
+            {before && ids.some(id => before[id] && (before[id].x !== pos[id]?.x || before[id].y !== pos[id]?.y)) && item(`Back to where ${ids.length > 1 ? 'they' : props ? 'it' : 'they'} stood in ${formationLabel(formations[current - 1], current - 1).title}`,
+              () => edit(p => { for (const id of ids) { const q = p.formations[current].positions[id], b = p.formations[current - 1].positions[id]; if (q && b) { q.x = b.x; q.y = b.y; delete q.via } } }))}
+            {ids.some(id => pos[id]?.via) && item(ids.length > 1 ? 'Straighten their paths' : 'Straighten the path', () => edit(p => { for (const id of ids) delete p.formations[current].positions[id]?.via }))}
+            {item(ids.length > 1 ? `Remove ${ids.length} from routine` : props ? 'Remove prop' : 'Remove from routine', () => removeDancers(ids), true)}
+          </Menu>
+        )
+      })()}
       {dropping && <div className="drop-hint" aria-hidden="true">Drop a song or video to use it in this routine</div>}
       {reading && <p className="toast is-info" role="status">Reading {reading}…</p>}
       <header className="bar">
@@ -417,7 +452,7 @@ function Workspace({ project }: { project: Project }) {
         <span className="chip">{pad(view.index + 1)} · {gelName(gel)}</span>
         <StageView stage={stage} dancers={dancers} positions={view.positions} selected={editable ? selected : []}
           onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined}
-          ghosts={editable ? formations[current - 1]?.positions : undefined} next={editable ? formations[current + 1]?.positions : undefined} paths={paths} flip={flipped} clash={editable ? hits.flat() : []}
+          ghosts={editable ? formations[current - 1]?.positions : undefined} next={editable ? formations[current + 1]?.positions : undefined} paths={paths} flip={flipped} clash={editable ? hits.flat() : []} onMenu={editable ? openMarkMenu : undefined}
           onBend={editable ? (id, via) => edit(p => { const q = p.formations[current].positions[id]; if (via) q.via = via; else delete q.via }) : undefined} />
         {/* The video element itself is put in here when a video is attached, so it keeps playing across re-renders. */}
         <div className={`screen${mirrored ? ' is-mirrored' : ''}`} ref={screen} hidden={!hasVideo || !showVideo} aria-label="The routine's video" />

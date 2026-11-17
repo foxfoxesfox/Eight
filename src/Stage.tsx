@@ -51,6 +51,8 @@ interface Props {
   flip?: boolean
   /** Dancers to ring as crossing someone's path. */
   clash?: string[]
+  /** Right-click on a dancer or prop, with where it happened. */
+  onMenu?: (id: string, x: number, y: number) => void
 }
 
 export type PathMode = 'always' | 'selected' | 'never'
@@ -64,7 +66,7 @@ function viaThrough(a: Position, b: Position, m: Position): Position['via'] {
   return { x: round(2 * m.x - mid.x), y: round(2 * m.y - mid.y) }
 }
 
-export function StageView({ stage, dancers, positions, selected = [], onSelect, onMove, label, ghosts, next, paths = 'never', onBend, flip = false, clash = [] }: Props) {
+export function StageView({ stage, dancers, positions, selected = [], onSelect, onMove, label, ghosts, next, paths = 'never', onBend, flip = false, clash = [], onMenu }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   // The ref is read by handlers, so a fast down-move-up never sees a stale drag; the state copy drives rendering.
   const live = useRef<Drag | null>(null)
@@ -204,6 +206,7 @@ export function StageView({ stage, dancers, positions, selected = [], onSelect, 
             aria-pressed={interactive ? sel : undefined}
             aria-label={`${dn.name}, ${describe(p, stage)}`}
             onPointerDown={e => down(e, dn.id)}
+            onContextMenu={onMenu ? e => { e.preventDefault(); onMenu(dn.id, e.clientX, e.clientY) } : undefined}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect?.(e.shiftKey ? [...new Set([...selected, dn.id])] : [dn.id]) }
             }}

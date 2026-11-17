@@ -19,6 +19,7 @@ A short guide to making a routine, followed by answers to common questions.
 - **Counts or seconds:** under Routine on the right, "Time formations in" switches the whole routine between seconds and counts. Set the tempo and the counts in a bar there too.
 - **Snapping:** "Snap to" above the timeline makes edges jump to counts, half counts, bars, whole seconds, or other formations. On the stage, "Dancers snap to" sets the step dancers jump by. Hold Alt while dragging to ignore snapping.
 - **Narrow bars** on the timeline show just their number. Point at a bar to see its name and lengths, or zoom in with the + button.
+- **Right-click a dancer or prop**, on the stage or in the list, to change its colour, put it offstage, send it back to where it stood in the formation before, straighten its path or remove it. With several selected, the menu acts on all of them.
 - **Right-click a formation** to duplicate it, reset it to the one before, line everyone up, move it or delete it.
 - **Dancers' view** flips the stage so you see it from the back, the way the dancers face. "Mirror video" does the same kind of flip for a video.
 - **Undo** is Ctrl or Cmd + Z. It goes back as far as when you opened the routine.

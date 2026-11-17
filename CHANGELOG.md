@@ -13,9 +13,10 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - README banner, poster, a 20-second promo video and this changelog.
 - The song or video is a track on the timeline: its name and volume sit at the start of its row, and clicking it (or right-clicking the waveform) opens volume, replace and remove. An empty row offers "Add music or video".
 - Drag a song, video or routine file onto the editor to add or open it. A message shows while a large file is read, and Replace swaps the song or video without removing it first.
+- Right-click a dancer or prop, on the stage or in the list, for colour, offstage, back to its spot in the formation before, straighten its path, or remove. With several selected it acts on all of them.
 - A user guide and FAQ in `docs/GUIDE.md`, shown inside the app on a Help page linked from every screen.
 - The app asks the browser to keep its saved routines when disk space runs low.
-- `npm run e2e`: 53 end-to-end checks of every screen and feature, in headless Chrome and optionally Safari. `npm run e2e:open` serves the same checks as a web page to run from any browser.
+- `npm run e2e`: 54 end-to-end checks of every screen and feature, in headless Chrome and optionally Safari. `npm run e2e:open` serves the same checks as a web page to run from any browser.
 
 **Changed**
 - "Add formation" is a slot at the end of the timeline and adds after the last formation (Duplicate in the right-click menu adds after any other).

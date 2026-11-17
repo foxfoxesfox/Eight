@@ -25,6 +25,7 @@ How to use it, and answers to common questions: [docs/GUIDE.md](docs/GUIDE.md), 
 - Trim how long a formation holds and how long everyone takes to move into it.
 - Time in seconds or in counts at a tempo, with any number of counts in a bar.
 - Snap to counts, half counts, bars, whole seconds, or formation edges and the playhead.
+- Right-click a dancer or prop for colour, offstage, back to its last spot, straighten its path or remove; with several selected it acts on all of them.
 - Right-click a formation to duplicate it, reset it to the one before, line everyone up, move or delete it.
 - Loop one formation, and slide the playback speed anywhere from 0.25× to 1.5×.
 
@@ -82,7 +83,7 @@ npm test
 npm run e2e
 ```
 
-`npm test` runs the unit tests. `npm run e2e` builds the site and runs 53 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
+`npm test` runs the unit tests. `npm run e2e` builds the site and runs 54 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
 
 
 ```bash
