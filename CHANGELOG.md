@@ -13,12 +13,16 @@ What changed in Eight, newest first. Dates are when the work was committed. The 
 - README banner, poster, a 20-second promo video and this changelog.
 - The song or video is a track on the timeline: its name and volume sit at the start of its row, and clicking it (or right-clicking the waveform) opens volume, replace and remove. An empty row offers "Add music or video".
 - Drag a song, video or routine file onto the editor to add or open it. A message shows while a large file is read, and Replace swaps the song or video without removing it first.
+- Preview: a full-screen run-through of the routine, like a presenter view, with the stage (and video), the formation, count and notes, what comes next, and arrow keys between formations.
+- Resizable workspace: drag the side panels, the timeline and the divider between the stage and the video; hide either side panel. The layout is remembered in the browser.
+- Props can be a rectangle, oval, triangle, diamond or hexagon.
 - Right-click a dancer or prop, on the stage or in the list, for colour, offstage, back to its spot in the formation before, straighten its path, or remove. With several selected it acts on all of them.
 - A user guide and FAQ in `docs/GUIDE.md`, shown inside the app on a Help page linked from every screen.
 - The app asks the browser to keep its saved routines when disk space runs low.
-- `npm run e2e`: 54 end-to-end checks of every screen and feature, in headless Chrome and optionally Safari. `npm run e2e:open` serves the same checks as a web page to run from any browser.
+- `npm run e2e`: 58 end-to-end checks of every screen and feature, in headless Chrome and optionally Safari. `npm run e2e:open` serves the same checks as a web page to run from any browser.
 
 **Changed**
+- Dancers and props share eight standard colours plus the colour picker (was twelve).
 - "Add formation" is a slot at the end of the timeline and adds after the last formation (Duplicate in the right-click menu adds after any other).
 - Formation bars too narrow for their name show their number; the name and lengths are in the tooltip. The time readout no longer cuts off the formation name.
 - Playback speed is a slider from 0.25× to 1.5× (was a three-option menu), and dragging it no longer restarts the song.

@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react'
-import { along, inkOn, round, shapePoints, unitOf, type Dancer, type Position, type Stage as StageT } from './model'
+import { along, inkOn, propPoints, round, shapePoints, unitOf, type Dancer, type Position, type Stage as StageT } from './model'
 
 const R = 0.34 // dancer mark radius, metres
 const MARGIN = 1.5 // wing space drawn around the stage, metres
@@ -8,7 +8,9 @@ export function MarkShape({ d, r = R }: { d: Dancer; r?: number }) {
   // In a list icon (any radius but the stage's) a prop is a small slab; on the stage it is its real size.
   if (d.prop) {
     const [w, h] = r === R ? [d.prop.w, d.prop.h] : [r * 2, r * 1.2]
-    return <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={0.06} fill={d.color} />
+    if (d.shape === 'square') return <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={Math.min(w, h) * 0.06} fill={d.color} />
+    const pts = propPoints(d.shape, w, h)
+    return pts ? <polygon points={pts.map(q => q.join(',')).join(' ')} fill={d.color} strokeLinejoin="round" /> : <ellipse rx={w / 2} ry={h / 2} fill={d.color} />
   }
   if (d.shape === 'square') return <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={r * 0.22} fill={d.color} />
   const pts = shapePoints(d.shape, r)

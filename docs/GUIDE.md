@@ -9,13 +9,14 @@ A short guide to making a routine, followed by answers to common questions.
 3. **Add the next formation.** Press "Add formation" at the end of the timeline. It starts as a copy of the last one, so you only move the people who change places. To put a copy somewhere in the middle, right-click a formation and choose Duplicate. Faint ghosts show where each person came from.
 4. **Set the timing.** Each formation is a coloured bar on the timeline. Drag its right edge to change how long it holds, and the small knob inside it to change how long everyone takes to walk in. You can also type the numbers on the right.
 5. **Add music or a video.** Press "Add music or video" in the empty row under the formations, or drag the file from your computer onto the page. Its waveform fills that row. Click the file's name at the start of the row, or right-click the waveform, to change the volume, replace the file or remove it. A video plays beside the stage, in step with the formations.
-6. **Play it.** Press Play or the Space bar. Use the Speed slider to slow it down and "Loop formation" to repeat one transition.
+6. **Play it.** Press Play or the Space bar. Use the Speed slider to slow it down and "Loop formation" to repeat one transition. For a run-through before you export, press **Preview**: the routine fills the screen with the formation name, count and notes, and what comes next. The arrow keys move between formations, Space plays and pauses, and Escape leaves.
 7. **Fix collisions.** If two dancers would walk into each other, the panel on the right names them and rings them in red. Select one, then drag the small white handle on their path to bend it around the other.
 8. **Share it.** Press Export and choose a routine file, a picture, PDF sheets or a video.
 
 ### Things worth knowing early
 
-- **Dancers:** click one to rename them or change their label, colour and shape. "Add prop" makes a box you can resize for a chair, riser or platform.
+- **Dancers:** click one to rename them or change their label, colour (eight standard ones, or any from the picker) and shape. "Add prop" makes a prop you can resize and shape as a rectangle, oval, triangle, diamond or hexagon, for a chair, riser, table or platform.
+- **Your workspace:** drag the edge of the dancers panel, the details panel or the timeline to make it bigger or smaller, or use the arrow buttons at the top of the stage to hide the side panels. With a video, drag the divider between the stage and the video to give either more room. Eight remembers the layout in this browser.
 - **Counts or seconds:** under Routine on the right, "Time formations in" switches the whole routine between seconds and counts. Set the tempo and the counts in a bar there too.
 - **Snapping:** "Snap to" above the timeline makes edges jump to counts, half counts, bars, whole seconds, or other formations. On the stage, "Dancers snap to" sets the step dancers jump by. Hold Alt while dragging to ignore snapping.
 - **Narrow bars** on the timeline show just their number. Point at a bar to see its name and lengths, or zoom in with the + button.

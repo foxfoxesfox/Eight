@@ -118,8 +118,14 @@ input[type='number'] { appearance: textfield; }
 .readout strong { font-weight: 700; }
 
 /* Editor layout */
-.editor { display: grid; grid-template: auto minmax(0, 1fr) auto / 248px minmax(0, 1fr) 272px; height: 100dvh; }
-.editor > .bar, .editor > .deck { grid-column: 1 / -1; }
+.editor { display: grid; grid-template: auto minmax(0, 1fr) auto / var(--left, 248px) minmax(0, 1fr) var(--right, 272px); height: 100dvh; }
+.editor > .bar { grid-area: 1 / 1 / 2 / -1; }
+.editor > .deck { grid-area: 3 / 1 / 4 / -1; }
+/* Placed by column, so hiding a side panel leaves the stage where it is. */
+.editor > .rail { grid-area: 2 / 1; }
+.editor > .floor { grid-area: 2 / 2; }
+.editor > .rail-right { grid-area: 2 / 3; }
+.editor > .rail[hidden] { display: none; }
 .rail { background: var(--paper); padding: 18px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .rail h2 { font-size: 14px; font-weight: 800; display: flex; justify-content: space-between; }
 .rail h2 span { color: var(--mute); }
@@ -139,7 +145,7 @@ input[type='number'] { appearance: textfield; }
   position: relative; display: grid; place-items: center; padding: 16px 16px 34px; min-height: 0;
   background: radial-gradient(ellipse 60% 55% at 50% 45%, color-mix(in srgb, var(--wash) 26%, transparent), transparent 72%), var(--ground);
 }
-.chip { position: absolute; top: 16px; left: 16px; z-index: 1; padding: 6px 10px; border-radius: 4px; background: var(--gel); color: var(--gel-ink); font-size: 13px; font-weight: 800; }
+.chip { position: absolute; top: 16px; left: 56px; z-index: 1; padding: 6px 10px; border-radius: 4px; background: var(--gel); color: var(--gel-ink); font-size: 13px; font-weight: 800; }
 .hint { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 12.5px; color: var(--mute); padding-inline: 16px; }
 
 /* Stage */
@@ -188,7 +194,7 @@ input[type='number'] { appearance: textfield; }
 .zoom .btn:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
 .zoom .btn:last-child { border-radius: 0 999px 999px 0; }
 .reel { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
-.track { position: relative; height: 182px; }
+.track { position: relative; height: var(--track, 182px); }
 /* Snap grid: a faint line per step, a stronger one every bar (every ten seconds when snapping to seconds). */
 .track.has-beats {
   background-position: var(--beat-at) 0;
@@ -222,7 +228,7 @@ input[type='number'] { appearance: textfield; }
 .trim-transition { top: auto; bottom: 6px; height: 24px; width: 12px; border-radius: 3px; background: currentColor; }
 .trim-transition::after { display: none; }
 .trim-transition:hover, .trim-transition:focus-visible { background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 35%, transparent); }
-.wave { position: relative; height: 54px; margin-top: 6px; }
+.wave { position: relative; height: calc(var(--track, 182px) - 128px); margin-top: 6px; }
 .wave canvas { position: absolute; top: 0; height: 100%; color: #17171ab3; }
 .wave p { position: absolute; top: 0; height: 100%; display: flex; align-items: center; gap: 5px; padding-inline: 12px; font-size: 13.5px; color: var(--mute); }
 .playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); pointer-events: none; z-index: 3; }
@@ -368,7 +374,7 @@ input[type='number'] { appearance: textfield; }
 .toast a { color: inherit; }
 
 /* A routine's video, side by side with the stage. */
-.floor.has-screen { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding-top: 52px; }
+.floor.has-screen { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); padding-top: 52px; }
 .screen { width: 100%; height: 100%; min-height: 0; }
 .screen video { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; background: #000; }
 .screen.is-mirrored video { transform: scaleX(-1); }
@@ -438,3 +444,54 @@ input[type='number'] { appearance: textfield; }
 .menu-list > .menu-swatches:hover { background: none; }
 .menu-swatches button { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px #00000026; }
 .menu-swatches button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Panel edges that can be dragged, and the buttons that hide and show the side panels. */
+.grip { position: absolute; z-index: 5; touch-action: none; }
+.grip::after { content: ''; position: absolute; background: var(--gel); opacity: 0; transition: opacity 0.15s var(--ease); }
+.grip:hover::after, .grip:focus-visible::after, .grip:active::after { opacity: 1; }
+.grip:focus-visible { outline: none; }
+.grip-left, .grip-right { top: 0; bottom: 0; width: 10px; cursor: col-resize; }
+.grip-left { left: -5px; } .grip-right { right: -5px; }
+.grip-left::after, .grip-right::after { top: 0; bottom: 0; left: 4px; width: 2px; }
+.grip-bottom { left: 0; right: 0; bottom: -5px; height: 10px; cursor: row-resize; }
+.grip-bottom::after { left: 0; right: 0; top: 4px; height: 2px; }
+.grip-split { position: relative; align-self: stretch; cursor: col-resize; }
+.grip-split::after { top: 10%; bottom: 10%; left: 7px; width: 2px; opacity: 0.35; background: var(--ink); border-radius: 2px; }
+.grip-split:hover::after, .grip-split:focus-visible::after, .grip-split:active::after { background: var(--gel); }
+.panel-toggle { position: absolute; top: 14px; left: 14px; z-index: 2; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--white); color: var(--ink); cursor: pointer; }
+.panel-toggle:hover { border-color: var(--ink); }
+.floor-tool .btn[aria-label] .icon { margin: 0; }
+
+/* The full-screen preview. */
+.preview { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px; padding: 20px 28px 24px; background: #17171a; color: #f4f2ee; }
+.preview-top { display: flex; align-items: center; gap: 24px; }
+.preview-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.preview-title .chip { position: static; font-size: 18px; padding: 6px 12px; }
+.preview-title b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.preview-title i { font-style: normal; color: #b5b0a6; }
+.preview-clock { margin-left: auto; display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
+.preview-clock strong { font-size: 26px; font-weight: 800; }
+.preview-clock span { color: #b5b0a6; }
+.preview .btn { color: #f4f2ee; }
+.preview .btn-solid { background: #f4f2ee; color: #17171a; border-color: #f4f2ee; }
+.preview-stage { display: grid; gap: 20px; min-height: 0; place-items: center; }
+.preview-stage .stage { width: 100%; height: 100%; }
+.preview-stage .stage-front { fill: #f4f2ee; }
+.preview .screen video { border-radius: 10px; }
+.preview-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 24px; }
+.preview-note { font-size: 20px; font-weight: 600; text-wrap: balance; }
+.preview-controls { display: flex; align-items: center; gap: 10px; }
+.preview-controls input[type='range'] { width: min(36vw, 420px); padding: 0; border: 0; background: none; accent-color: var(--gel); }
+.preview-next { justify-self: end; display: grid; justify-items: end; gap: 2px; width: 220px; }
+.preview-next span { font-size: 12.5px; font-weight: 700; color: #b5b0a6; }
+.preview-next .stage { width: 220px; height: 150px; }
+
+@media (max-width: 900px) {
+  .editor > * { grid-area: auto; }
+  .editor > .rail[hidden] { display: flex; }
+  .grip, .panel-toggle, .floor-tool .btn[aria-label] { display: none; }
+  .floor.has-screen { grid-template-columns: minmax(0, 1fr) !important; }
+  .chip { left: 16px; }
+  .preview-bottom { grid-template-columns: minmax(0, 1fr); }
+  .preview-next { display: none; }
+}

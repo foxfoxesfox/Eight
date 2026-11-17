@@ -68,7 +68,8 @@ async function run() {
   W = frame.contentWindow; D = W.document
   // Capture downloads, file pickers, confirmations and printing instead of letting them reach the person's computer.
   W.__downloads = []
-  const made = W.URL.createObjectURL.bind(W.URL)
+  W.localStorage.removeItem('eight.layout') // every run starts from the standard panel sizes
+  const made =W.URL.createObjectURL.bind(W.URL)
   W.URL.createObjectURL = b => { const u = made(b); (W.__blobs ??= {})[u] = b; return u }
   const takeAnchor = a => { if (a.download) { W.__downloads.push({ name: a.download, blob: W.__blobs?.[a.href] }); return true } }
   const click = W.HTMLAnchorElement.prototype.click
@@ -162,6 +163,16 @@ async function run() {
     const rect = $('.floor .is-prop .dancer-body rect')
     return ok(+rect.getAttribute('width') === 3 && $('.floor .is-prop text').textContent === 'Riser' && /6 dancers/.test($('.bar-meta').textContent), { width: rect.getAttribute('width') })
   })
+  await test('props come in five shapes; dancers and props have eight colours and a picker', async () => {
+    const rail = $('.rail-right'), shape = field('Shape', rail), out = {}
+    out.names = [...shape.options].map(o => o.textContent).join(', ')
+    setVal(shape, 'circle'); await sleep(100); out.oval = !!$('.floor .is-prop .dancer-body ellipse')
+    setVal(shape, 'triangle'); await sleep(100); out.triangle = $('.floor .is-prop .dancer-body polygon')?.getAttribute('points').split(' ').length === 3
+    setVal(shape, 'square'); await sleep(100)
+    const colours = [...rail.querySelectorAll('fieldset')].find(f => f.querySelector('legend')?.textContent === 'Colour')
+    out.swatches = colours.querySelectorAll('button').length; out.picker = !!colours.querySelector('input[type=color]')
+    return ok(out.names === 'Rectangle, Oval, Triangle, Diamond, Hexagon' && out.oval && out.triangle && out.swatches === 8 && out.picker, out)
+  })
   await test('remove a dancer, then undo and redo', async () => {
     $$('.dancer-list button')[5].click(); await sleep(100)
     btn('Remove from routine').click(); await sleep(150); const removed = people().length
@@ -202,7 +213,7 @@ async function run() {
     const close = m => m.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     key('Escape'); await sleep(60)
     let m = await open(people()[2]); out.items = [...m.querySelectorAll('[role=menuitem]')].map(b => b.textContent); out.selectsIt = details() === 'Dancer'
-    m.querySelectorAll('.menu-swatches button')[8].click(); await sleep(120); out.coloured = !!people()[2].querySelector('[fill="#e5484d"]') && !$('.menu-list.ctx')
+    m.querySelectorAll('.menu-swatches button')[4].click(); await sleep(120); out.coloured = !!people()[2].querySelector('[fill="#b79bff"]') && !$('.menu-list.ctx')
     m = await open(people()[2]); btn('Offstage in this formation', m).click(); await sleep(120); out.off = people()[2].classList.contains('is-off')
     m = await open(people()[2]); btn('Back on stage in this formation', m).click(); await sleep(120); out.on = !people()[2].classList.contains('is-off')
     const before = people()[2].getAttribute('transform')
@@ -344,6 +355,35 @@ async function run() {
     btn("Dancers' view").click(); await sleep(100)
     return ok(flipped && /bottom/.test($('.floor .stage').getAttribute('aria-label')))
   })
+  await test('side panels hide and show, and panel edges resize by dragging and by arrow keys', async () => {
+    const out = {}, cols = () => getComputedStyle($('.editor')).gridTemplateColumns.split(' ')
+    btn('Hide the dancers panel').click(); await sleep(100); out.leftHidden = $('.editor > .rail:not(.rail-right)').hidden && cols()[0] === '0px'
+    btn('Show the dancers panel').click(); await sleep(100); out.leftBack = !$('.editor > .rail:not(.rail-right)').hidden
+    btn('Hide the details panel').click(); await sleep(100); out.rightHidden = $('.rail-right').hidden && cols()[2] === '0px'
+    btn('Show the details panel').click(); await sleep(100); out.rightBack = !$('.rail-right').hidden
+    const w0 = parseFloat(cols()[0]), g = $('.grip-left'), [x, y] = mid(g)
+    ptr(g, 'pointerdown', x, y); ptr(g, 'pointermove', x + 48, y); ptr(g, 'pointerup', x + 48, y); await sleep(100); out.dragged = parseFloat(cols()[0]) - w0
+    for (let i = 0; i < 3; i++) $('.grip-left').dispatchEvent(new W.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    await sleep(100); out.keyedBack = parseFloat(cols()[0]) === w0
+    const t0 = $('.track').getBoundingClientRect().height
+    for (let i = 0; i < 2; i++) $('.grip-bottom').dispatchEvent(new W.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    await sleep(100); out.taller = $('.track').getBoundingClientRect().height - t0
+    for (let i = 0; i < 2; i++) $('.grip-bottom').dispatchEvent(new W.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    out.saved = !!W.localStorage.getItem('eight.layout')
+    return ok(out.leftHidden && out.leftBack && out.rightHidden && out.rightBack && out.dragged === 48 && out.keyedBack && out.taller === 32 && out.saved, out)
+  })
+  await test('Preview runs the routine full screen, with arrow keys between formations and Escape to leave', async () => {
+    // Where everyone stands in each formation, to prove the preview's arrow keys never move anyone.
+    const saved = async () => { const r = []; for (const c of clips()) { c.querySelector('.clip-body').click(); await sleep(60); r.push(spots()) } return r.join('|') }
+    $$('.dancer-list button')[0].click(); await sleep(60); const before = await saved()
+    btn('Preview').click(); await until(() => $('.preview')); const out = { opened: !!$('.preview'), atStart: $('.preview-title b')?.textContent }
+    key('ArrowRight'); await sleep(150); out.next = $('.preview-title b')?.textContent
+    key('ArrowLeft'); await sleep(150); out.back = $('.preview-title b')?.textContent
+    key(' '); await sleep(700); out.playing = btn('Pause', $('.preview')) !== undefined
+    key('Escape'); await sleep(200); out.closed = !$('.preview') && !!btn('Play from the playhead')
+    out.dancersUntouched = (await saved()) === before
+    return ok(out.opened && out.atStart === 'Formation 1' && out.next !== out.atStart && out.dancersUntouched && out.back === 'Formation 1' && out.playing && out.closed, out)
+  })
   await test('the Paths menu shows paths for everyone, the selected, or no one', async () => {
     clips()[1].querySelector('.clip-body').click(); await sleep(100)
     const sel = $('.floor-tool select'); setVal(sel, 'always'); await sleep(100); const all = $$('.floor .trail').length
@@ -372,6 +412,14 @@ async function run() {
     btn('Hide video').click(); await sleep(80); out.hidden = $('.screen').hidden && !$('.floor').classList.contains('has-screen'); btn('Show video').click(); await sleep(80)
     out.back = !$('.screen').hidden
     return ok(out.shown && /clip\.mp4/.test(out.tag) && out.mirrored && out.hidden && out.back, out)
+  })
+  await test('the divider between the stage and the video moves both ways', async () => {
+    const share = () => { const [a, , b] = getComputedStyle($('.floor')).gridTemplateColumns.split(' ').map(parseFloat); return a / (a + b) }
+    const s0 = share(), g = $('.grip-split'), [x, y] = mid(g)
+    ptr(g, 'pointerdown', x, y); ptr(g, 'pointermove', x - 120, y); ptr(g, 'pointerup', x - 120, y); await sleep(100); const smaller = share()
+    for (let i = 0; i < 6; i++) $('.grip-split').dispatchEvent(new W.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await sleep(100); const bigger = share()
+    return ok(g && smaller < s0 - 0.05 && bigger > smaller + 0.2, { s0, smaller, bigger })
   })
   await test('a song file can draw the waveform for a video, with an offset', async () => {
     btn('Use a song file for the waveform').click(); await sleep(80)

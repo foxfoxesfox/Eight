@@ -16,8 +16,10 @@ How to use it, and answers to common questions: [docs/GUIDE.md](docs/GUIDE.md), 
 - Drag dancers, select several with a box or Shift-click, nudge with the arrow keys.
 - Ready-made shapes (line, two rows, block, circle, V, pyramid) and group tools: turn, mirror, spread, tighten.
 - Curved paths between formations, with a warning when two dancers would walk into each other.
-- Props (boxes, risers, chairs) that move and animate like dancers.
-- Offstage marking, twelve colours plus any colour you pick, five mark shapes.
+- Props (boxes, risers, chairs, tables) in five shapes that move and animate like dancers.
+- Offstage marking, eight colours plus any colour you pick, five mark shapes.
+- A workspace you can arrange: resize or hide the side panels, resize the timeline, and share the space between the stage and the video.
+- Preview: a full-screen run-through with the formation, count, notes and what comes next.
 - Metres or feet, grid spacing, snap step, quarter lines or numbers along the front.
 - Dancers' view: the stage seen from the back, the way the dancers face.
 
@@ -83,7 +85,7 @@ npm test
 npm run e2e
 ```
 
-`npm test` runs the unit tests. `npm run e2e` builds the site and runs 54 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
+`npm test` runs the unit tests. `npm run e2e` builds the site and runs 58 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
 
 
 ```bash

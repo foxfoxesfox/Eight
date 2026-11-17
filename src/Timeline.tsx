@@ -17,6 +17,8 @@ interface Props {
   index: number
   peaks: Float32Array | null
   audioMissing: boolean
+  /** Height of the timeline's track area, which the person can drag taller or shorter. */
+  trackHeight: number
   /** The routine's music is a video, shown beside the stage. */
   hasVideo: boolean
   speed: number
@@ -40,7 +42,7 @@ interface Props {
   onPickWave: () => void
 }
 
-export function Timeline({ project, time, playing, index, peaks, audioMissing, hasVideo, speed, onSpeed, volume, onVolume, loop, onLoop, onSeek, onToggle, onAddFormation, reading, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
+export function Timeline({ project, time, playing, index, peaks, audioMissing, trackHeight, hasVideo, speed, onSpeed, volume, onVolume, loop, onLoop, onSeek, onToggle, onAddFormation, reading, onFollow, onPickAudio, onRemoveAudio, onPickWave }: Props) {
   /** Seconds into the timeline where the drawn waveform starts. */
   const waveAt = project.audio?.wave?.offset ?? 0
   /** The right-click menu: which formation it is for and where it was opened. */
@@ -115,7 +117,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, h
       const bar = Math.max(1, v * (h - 4))
       g.fillRect(x, (h - bar) / 2, 1, bar)
     }
-  }, [peaks, pps, view, waveAt])
+  }, [peaks, pps, view, waveAt, trackHeight])
 
   // Seconds between snap lines, or 0 when snapping is off or goes to edges instead of a grid.
   const grid = { off: 0, edge: 0, count: beat, half: beat / 2, bar: beat * perBar, second: 1 }[snap]

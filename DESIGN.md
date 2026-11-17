@@ -195,6 +195,12 @@ Buttons are full pills. Inputs and list rows use 8px corners; panels 12px. Forma
 - **Formation menu:** right-clicking a formation bar opens a floating menu in the menu style, upwards from the pointer. Destructive items use the bad colour; unavailable ones are dimmed, not hidden.
 - **Messages:** errors use the bordered error toast; neutral news (a finished video, a file with no waveform) uses the same shape in white with a line border.
 
+### Panels
+- The dancers panel, details panel and timeline can be resized by dragging their edge; a 2px line in the current lighting colour shows on the edge under the pointer. The side panels hide with a round arrow button at the stage's top corners. Under 900px wide the layout stacks and these controls are hidden.
+
+### Preview
+- A full-screen view on the ink background: formation number chip and name top left, clock top right, the stage (and video) filling the middle, the formation's note bottom left, play controls bottom centre and the next formation as a small drawing bottom right.
+
 ### Video beside the stage
 - A routine's video shares the stage area half and half, on black with 8px corners. It carries no controls of its own: Play, the playhead and speed drive it.
 

@@ -75,7 +75,8 @@ export interface Project {
   updatedAt: number
 }
 
-export const DANCER_COLORS = ['#ffb000', '#ff7fb0', '#00c2c2', '#8fd14f', '#b79bff', '#ff8a4c', '#5aa9ff', '#17171a', '#e5484d', '#f5e050', '#9c6b3f', '#e8e6e1']
+/** Eight standard colours, for dancers and props alike; the colour picker offers any other. */
+export const DANCER_COLORS = ['#ffb000', '#ff7fb0', '#00c2c2', '#8fd14f', '#b79bff', '#ff8a4c', '#5aa9ff', '#17171a']
 export const PROP_COLOR = '#8a8f98'
 export const FT = 0.3048
 /** Metres in one of the stage's own units. */
@@ -108,6 +109,18 @@ export function inkOn(hex: string): string {
 export const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'diamond', 'hexagon']
 
 /** Corners of a mark of radius `r`, y pointing down; none for a circle. Shared by the stage drawing and the video. */
+/** A prop's outline, stretched to fill its width and depth; null for an oval, which is drawn as an ellipse. */
+export function propPoints(shape: Shape, w: number, h: number): [number, number][] | null {
+  const pts = shapePoints(shape, 1)
+  if (!pts) return null
+  const xs = pts.map(q => q[0]), ys = pts.map(q => q[1])
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+  return pts.map(([x, y]) => [((x - x0) / (x1 - x0) - 0.5) * w, ((y - y0) / (y1 - y0) - 0.5) * h])
+}
+
+/** What each shape is called on a prop, where a square is any rectangle and a circle any oval. */
+export const PROP_SHAPE_NAMES: Record<Shape, string> = { square: 'Rectangle', circle: 'Oval', triangle: 'Triangle', diamond: 'Diamond', hexagon: 'Hexagon' }
+
 export function shapePoints(shape: Shape, r: number): [number, number][] | null {
   if (shape === 'square') return [[-r, -r], [r, -r], [r, r], [-r, r]]
   if (shape === 'triangle') return [[0, -r * 1.15], [r * 1.08, r * 0.82], [-r * 1.08, r * 0.82]]

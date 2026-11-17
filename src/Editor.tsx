@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { clock, MAX_AUDIO_BYTES, MAX_WAVEFORM_BYTES, mediaLength, readAudio } from './audio'
 import { loadAudio, loadProject, loadWave, saveAudio, saveProject, saveWave } from './db'
-import { centroid, clashes, DANCER_COLORS, formationLabel, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
+import { centroid, clashes, DANCER_COLORS, formationLabel, PROP_SHAPE_NAMES, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
 import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, moveFormation, removeDancers, resizeStage, useEditor } from './store'
 import { describe, MarkIcon, StageView, type PathMode } from './Stage'
 import { recordVideo, soundForExport, type ExportSound } from './video'
+import { Preview } from './Preview'
 import { Timeline } from './Timeline'
 import { download, Field, go, Icon, Menu, savePng, ThemeToggle } from './ui'
 
 const MEDIA_TYPES: Record<string, string> = { mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', flac: 'audio/flac' }
+/** Panel sizes and which side panels show, remembered in this browser. */
+type Layout = { left: number; right: number; track: number; split: number; showLeft: boolean; showRight: boolean }
+const LAYOUT: Layout = { left: 248, right: 272, track: 182, split: 0.5, showLeft: true, showRight: true }
+const within = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+function loadLayout(): Layout {
+  try {
+    const l = { ...LAYOUT, ...JSON.parse(localStorage.getItem('eight.layout') ?? '{}') }
+    return { ...l, left: within(+l.left || LAYOUT.left, 180, 440), right: within(+l.right || LAYOUT.right, 220, 480), track: within(+l.track || LAYOUT.track, 150, 420), split: within(+l.split || LAYOUT.split, 0.2, 0.8), showLeft: l.showLeft !== false, showRight: l.showRight !== false }
+  } catch { return LAYOUT } // storage refused or unreadable: the standard layout
+}
+
 const pad = (n: number) => String(n).padStart(2, '0')
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
@@ -86,6 +98,30 @@ function Workspace({ project }: { project: Project }) {
   }, [speed, volume])
   const [loop, setLoop] = useState(false)
   const [flipped, setFlipped] = useState(false)
+  const [layout, setLayout] = useState(loadLayout)
+  useEffect(() => { try { localStorage.setItem('eight.layout', JSON.stringify(layout)) } catch { /* storage refused: the layout lasts this visit */ } }, [layout])
+  /** Drags a panel edge; `apply` turns how far the pointer has moved since it was pressed into new sizes. */
+  const resize = (e: React.PointerEvent, apply: (dx: number, dy: number) => Partial<Layout>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const el = e.currentTarget as HTMLElement, x0 = e.clientX, y0 = e.clientY
+    el.setPointerCapture(e.pointerId)
+    document.body.style.userSelect = 'none' // no text gets selected while a panel edge is dragged
+    const move = (ev: PointerEvent) => setLayout(l => ({ ...l, ...apply(ev.clientX - x0, ev.clientY - y0) }))
+    const stop = () => { document.body.style.userSelect = ''; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', stop); el.removeEventListener('pointercancel', stop) }
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', stop)
+    el.addEventListener('pointercancel', stop)
+  }
+  /** Arrow keys on a panel edge move it too; `sign` says which way a rightward or downward key makes the panel grow. */
+  const nudge = (e: React.KeyboardEvent, key: 'left' | 'right' | 'track' | 'split', sign: number, lo: number, hi: number, step: number) => {
+    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
+    if (!d) return
+    e.preventDefault()
+    e.stopPropagation()
+    setLayout(l => ({ ...l, [key]: within(l[key] + d * sign * step, lo, hi) }))
+  }
+  const [previewing, setPreviewing] = useState(false)
   /** How far a video recording has got, 0 to 1; null when none is being made. */
   const [video, setVideo] = useState<number | null>(null)
   const stopVideo = useRef<AbortController | null>(null)
@@ -368,7 +404,7 @@ function Workspace({ project }: { project: Project }) {
   const lengthField = { type: 'number', max: 600, step: counts ? 0.25 : 0.1, suffix: counts ? 'counts' : 's' } as const
 
   return (
-    <div className="editor" style={{ '--gel': gel, '--wash': wash, '--gel-ink': inkOn(gel) } as CSSProperties}
+    <div className="editor" style={{ '--gel': gel, '--wash': wash, '--gel-ink': inkOn(gel), '--left': `${layout.showLeft ? layout.left : 0}px`, '--right': `${layout.showRight ? layout.right : 0}px`, '--track': `${layout.track}px` } as CSSProperties}
       onDragOver={e => { if (!e.dataTransfer.types.includes('Files')) return; e.preventDefault(); setDropping(true) }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false) }}
       onDrop={e => {
@@ -422,9 +458,15 @@ function Workspace({ project }: { project: Project }) {
           <button className="btn" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Shift+Z)"><Icon name="redo" />Redo</button>
           <button className="btn" onClick={() => importRef.current?.click()}><Icon name="upload" />Import</button>
           <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={e => { importFile(e.target.files?.[0]); e.target.value = '' }} />
+          <button className="btn" onClick={() => { setPlaying(false); seek(0); select([]); setPreviewing(true) }} title="Plays the routine full screen, to run through it before you export"><Icon name="play" />Preview</button>
           <button className="btn btn-solid" onClick={() => exportBox.current?.showModal()}><Icon name="download" />Export</button>
         </nav>
       </header>
+      {previewing && (
+        <Preview project={project} time={time} end={end} playing={playing} index={view.index} positions={view.positions} gel={gel} wash={wash} flip={flipped}
+          video={hasVideo && showVideo && song.current instanceof HTMLVideoElement ? song.current : null} mirrored={mirrored} split={layout.split}
+          onToggle={toggle} onSeek={seek} onClose={() => { setPlaying(false); setPreviewing(false) }} />
+      )}
       <ExportDialog box={exportBox} hasVideo={hasVideo} showVideo={showVideo} mirrored={mirrored} busy={video !== null} length={totalTime(formations)} formation={formationLabel(here, view.index).title}
         onExport={(kind, options) => {
           if (kind === 'file') download(`${fileName}.eight.json`, JSON.stringify(project, null, 2))
@@ -439,7 +481,7 @@ function Workspace({ project }: { project: Project }) {
       {video !== null && <p className="toast is-info" role="status">Recording the video: {Math.round(video * 100)}%. It plays through once at normal speed, so keep this tab open. <button className="link" onClick={() => stopVideo.current?.abort()}>Cancel</button></p>}
       {videoFile && <p className="toast is-info" role="status">Your video is ready. <a className="link" href={videoFile.url} download={videoFile.name}>Save {videoFile.name}</a> <button className="link" onClick={dropVideo}>Dismiss</button></p>}
 
-      <aside className="rail" aria-label="Dancers and props">
+      <aside className="rail" aria-label="Dancers and props" hidden={!layout.showLeft}>
         <h2>Dancers <span>{people.length}</span></h2>
         {list(people)}
         <button className="btn btn-line" onClick={addDancer} disabled={!editable}><Icon name="plus" />Add dancer</button>
@@ -448,12 +490,22 @@ function Workspace({ project }: { project: Project }) {
         <button className="btn btn-line" onClick={addProp} disabled={!editable}><Icon name="plus" />Add prop</button>
       </aside>
 
-      <main className={`floor${hasVideo && showVideo ? ' has-screen' : ''}`}>
+      <main className={`floor${hasVideo && showVideo ? ' has-screen' : ''}`} style={hasVideo && showVideo ? { gridTemplateColumns: `minmax(0, ${layout.split}fr) 16px minmax(0, ${1 - layout.split}fr)` } : undefined}>
+        <button className="panel-toggle" onClick={() => setLayout(l => ({ ...l, showLeft: !l.showLeft }))} aria-label={layout.showLeft ? 'Hide the dancers panel' : 'Show the dancers panel'} title={layout.showLeft ? 'Hide the dancers panel' : 'Show the dancers panel'}><Icon name={layout.showLeft ? 'left' : 'right'} /></button>
+        {layout.showLeft && <div className="grip grip-left" role="separator" aria-orientation="vertical" aria-label="Width of the dancers panel" aria-valuenow={layout.left} tabIndex={0}
+          onPointerDown={e => resize(e, dx => ({ left: within(layout.left + dx, 180, 440) }))} onKeyDown={e => nudge(e, 'left', 1, 180, 440, 16)} />}
+        {layout.showRight && <div className="grip grip-right" role="separator" aria-orientation="vertical" aria-label="Width of the details panel" aria-valuenow={layout.right} tabIndex={0}
+          onPointerDown={e => resize(e, dx => ({ right: within(layout.right - dx, 220, 480) }))} onKeyDown={e => nudge(e, 'right', -1, 220, 480, 16)} />}
+        <div className="grip grip-bottom" role="separator" aria-orientation="horizontal" aria-label="Height of the timeline" aria-valuenow={layout.track} tabIndex={0}
+          onPointerDown={e => resize(e, (_, dy) => ({ track: within(layout.track - dy, 150, 420) }))} onKeyDown={e => nudge(e, 'track', -1, 150, 420, 16)} />
         <span className="chip">{pad(view.index + 1)} · {gelName(gel)}</span>
         <StageView stage={stage} dancers={dancers} positions={view.positions} selected={editable ? selected : []}
           onSelect={editable ? select : undefined} onMove={editable ? m => moveDancers(current, m) : undefined}
           ghosts={editable ? formations[current - 1]?.positions : undefined} next={editable ? formations[current + 1]?.positions : undefined} paths={paths} flip={flipped} clash={editable ? hits.flat() : []} onMenu={editable ? openMarkMenu : undefined}
           onBend={editable ? (id, via) => edit(p => { const q = p.formations[current].positions[id]; if (via) q.via = via; else delete q.via }) : undefined} />
+        {hasVideo && showVideo && <div className="grip grip-split" role="separator" aria-orientation="vertical" aria-label="Share of the space between the stage and the video" aria-valuenow={Math.round(layout.split * 100)} tabIndex={0}
+          onPointerDown={e => { const w = (e.currentTarget.parentElement?.clientWidth ?? 800) - 48; resize(e, dx => ({ split: within(layout.split + dx / w, 0.2, 0.8) })) }}
+          onKeyDown={e => nudge(e, 'split', 1, 0.2, 0.8, 0.05)} />}
         {/* The video element itself is put in here when a video is attached, so it keeps playing across re-renders. */}
         <div className={`screen${mirrored ? ' is-mirrored' : ''}`} ref={screen} hidden={!hasVideo || !showVideo} aria-label="The routine's video" />
         <div className="floor-tool">
@@ -465,6 +517,7 @@ function Workspace({ project }: { project: Project }) {
           <button className="btn btn-line" aria-pressed={flipped} onClick={() => setFlipped(!flipped)} title="Shows the stage from the back, the way the dancers face, with the audience at the top">Dancers' view</button>
           {hasVideo && showVideo && <button className="btn btn-line" aria-pressed={mirrored} onClick={() => setMirrored(!mirrored)} title="Flips the video left to right, like a mirror, so you can follow it facing the same way">Mirror video</button>}
           {hasVideo && <button className="btn btn-line" onClick={() => setShowVideo(!showVideo)}>{showVideo ? 'Hide video' : 'Show video'}</button>}
+          <button className="btn btn-line" onClick={() => setLayout(l => ({ ...l, showRight: !l.showRight }))} aria-label={layout.showRight ? 'Hide the details panel' : 'Show the details panel'} title={layout.showRight ? 'Hide the details panel' : 'Show the details panel'}><Icon name={layout.showRight ? 'right' : 'left'} /></button>
         </div>
         {playing && here.note && <p className="caption">{here.note}</p>}
         <p className="hint">
@@ -474,16 +527,23 @@ function Workspace({ project }: { project: Project }) {
         </p>
       </main>
 
-      <aside className="rail rail-right" aria-label="Details">
+      <aside className="rail rail-right" aria-label="Details" hidden={!layout.showRight}>
         {one && f.positions[one.id] ? (
           <>
             <h2>{one.prop ? 'Prop' : 'Dancer'}</h2>
             <Field label="Name" value={one.name} maxLength={40} onCommit={v => setOne(d => { d.name = v })} />
             {one.prop ? (
-              <div className="pair">
-                <Field label="Width" type="number" min={0.5} max={60} step={0.5} suffix={stage.unit} value={len(one.prop.w)} onCommit={v => setOne(d => { d.prop!.w = round(Number(v) * u) })} />
-                <Field label="Depth" type="number" min={0.5} max={60} step={0.5} suffix={stage.unit} value={len(one.prop.h)} onCommit={v => setOne(d => { d.prop!.h = round(Number(v) * u) })} />
-              </div>
+              <>
+                <label className="field"><span>Shape</span>
+                  <select value={one.shape} onChange={e => setOne(d => { d.shape = e.target.value as Shape })}>
+                    {(Object.keys(PROP_SHAPE_NAMES) as Shape[]).map(s => <option key={s} value={s}>{PROP_SHAPE_NAMES[s]}</option>)}
+                  </select>
+                </label>
+                <div className="pair">
+                  <Field label="Width" type="number" min={0.5} max={60} step={0.5} suffix={stage.unit} value={len(one.prop.w)} onCommit={v => setOne(d => { d.prop!.w = round(Number(v) * u) })} />
+                  <Field label="Depth" type="number" min={0.5} max={60} step={0.5} suffix={stage.unit} value={len(one.prop.h)} onCommit={v => setOne(d => { d.prop!.h = round(Number(v) * u) })} />
+                </div>
+              </>
             ) : (
               <>
                 <Field label="Label (1 to 3 characters)" value={one.label} maxLength={3} onCommit={v => setOne(d => { d.label = v })} />
@@ -592,7 +652,7 @@ function Workspace({ project }: { project: Project }) {
       </aside>
 
       <Timeline project={project} time={time} playing={playing} index={view.index} peaks={peaks} audioMissing={audioMissing} hasVideo={hasVideo}
-        speed={speed} onSpeed={setSpeed} volume={volume} onVolume={setVolume} loop={loop} onLoop={setLoop}
+        trackHeight={layout.track} speed={speed} onSpeed={setSpeed} volume={volume} onVolume={setVolume} loop={loop} onLoop={setLoop}
         onSeek={seek} onToggle={toggle} onAddFormation={() => { addFormation(useEditor.getState().project!.formations.length - 1); follow() }} reading={!!reading} onFollow={follow}
         onPickAudio={() => audioRef.current?.click()} onPickWave={() => waveRef.current?.click()} onRemoveAudio={removeAudio} />
       <input ref={waveRef} type="file" accept="audio/*,.mp3,.wav,.m4a" hidden onChange={e => { addWave(e.target.files?.[0]); e.target.value = '' }} />

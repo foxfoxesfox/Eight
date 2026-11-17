@@ -1,6 +1,6 @@
 import { clock, MAX_WAVEFORM_BYTES } from './audio'
 import { aacBuffer } from './mp4audio'
-import { formationLabel, gelOf, inkOn, positionsAt, shapePoints, totalTime, type Project } from './model'
+import { formationLabel, gelOf, inkOn, positionsAt, propPoints, shapePoints, totalTime, type Project } from './model'
 
 const FPS = 30
 const R = 0.34 // dancer mark radius, metres: the same as on the stage
@@ -80,8 +80,10 @@ export async function recordVideo(project: Project, sound: ExportSound | undefin
       g.translate(X(p.x), Y(p.y))
       g.globalAlpha = p.offstage ? 0.35 : 1
       g.beginPath()
-      const pts = d.prop ? [[-d.prop.w / 2, -d.prop.h / 2], [d.prop.w / 2, -d.prop.h / 2], [d.prop.w / 2, d.prop.h / 2], [-d.prop.w / 2, d.prop.h / 2]] : shapePoints(d.shape, R)
-      if (pts) { pts.forEach(([x, y], i) => (i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k))); g.closePath() } else g.arc(0, 0, R * k, 0, Math.PI * 2)
+      const pts = d.prop ? propPoints(d.shape, d.prop.w, d.prop.h) : shapePoints(d.shape, R)
+      if (pts) { pts.forEach(([x, y], i) => (i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k))); g.closePath() }
+      else if (d.prop) g.ellipse(0, 0, (d.prop.w / 2) * k, (d.prop.h / 2) * k, 0, 0, Math.PI * 2)
+      else g.arc(0, 0, R * k, 0, Math.PI * 2)
       g.fillStyle = d.color
       g.fill()
       g.lineWidth = 3 * S
