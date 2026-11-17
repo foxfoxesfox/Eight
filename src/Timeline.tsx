@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock, PEAK_RATE } from './audio'
-import { formationLabel, gelOf, inkOn, span, startTimes, tidy, totalTime, type Formation, type Project } from './model'
+import { formationLabel, gelOf, inkOn, keptOf, round, soundLength, span, startTimes, tidy, totalTime, type Formation, type Project } from './model'
 import { addFormation, deleteFormation, edit, matchPrevious, moveFormation, resetLine } from './store'
 import { Icon, Menu } from './ui'
 
@@ -64,6 +64,14 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
   const canvas = useRef<HTMLCanvasElement>(null)
   // The ref is what handlers read, so a fast drag never sees a stale value; the state copy drives rendering.
   const live = useRef<Trim | null>(null)
+  // Trimming the song or video: which end is being dragged, and to where, before it is committed on release.
+  type Cut = { edge: 'from' | 'to'; x0: number; v0: number; v: number }
+  const cutLive = useRef<Cut | null>(null)
+  const [cut, renderCut] = useState<Cut | null>(null)
+  const setCut = (c: Cut | null) => { cutLive.current = c; renderCut(c) }
+  const kept = project.audio ? keptOf(project.audio) : { from: 0, to: 0 }
+  const keepFrom = cut?.edge === 'from' ? cut.v : kept.from
+  const keepTo = cut?.edge === 'to' ? cut.v : kept.to
   const [trim, render] = useState<Trim | null>(null)
   const setTrim = (t: Trim | null) => { live.current = t; render(t) }
 
@@ -73,7 +81,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
   const beatAt = project.beatOffset ?? 0
   const formations = trim ? project.formations.map((f, i) => (i === trim.i ? { ...f, ...resize(f, trim.edge, trim.value) } : f)) : project.formations
   const starts = startTimes(formations)
-  const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
+  const end = Math.max(totalTime(formations), soundLength(project.audio))
   // Room after the end for the Add formation slot at any zoom.
   const width = Math.max(view.width, end * pps + Math.max(3 * pps, 170))
 
@@ -108,8 +116,11 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
     if (!peaks) return
     g.fillStyle = getComputedStyle(c).color
     for (let x = 0; x < w; x++) {
-      const a = Math.floor(((view.left + x) / pps - waveAt) * PEAK_RATE)
-      const b = Math.max(a + 1, Math.floor(((view.left + x + 1) / pps - waveAt) * PEAK_RATE))
+      // The timeline's 0:00 is the kept stretch's start; parts being trimmed away are drawn faint.
+      const m = (view.left + x) / pps + kept.from
+      g.globalAlpha = m < keepFrom || m > keepTo ? 0.25 : 1
+      const a = Math.floor((m - waveAt) * PEAK_RATE)
+      const b = Math.max(a + 1, Math.floor((m + 1 / pps - waveAt) * PEAK_RATE))
       if (a < 0) continue
       if (a >= peaks.length) break
       let v = 0
@@ -117,13 +128,13 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
       const bar = Math.max(1, v * (h - 4))
       g.fillRect(x, (h - bar) / 2, 1, bar)
     }
-  }, [peaks, pps, view, waveAt, trackHeight])
+  }, [peaks, pps, view, waveAt, trackHeight, kept.from, keepFrom, keepTo])
 
   // Seconds between snap lines, or 0 when snapping is off or goes to edges instead of a grid.
   const grid = { off: 0, edge: 0, count: beat, half: beat / 2, bar: beat * perBar, second: 1 }[snap]
   const gridAt = snap === 'second' ? 0 : beatAt
   /** Every place a formation starts moving, arrives or ends, and where the song ends. */
-  const edges = [...starts.flatMap((s, i) => [s - formations[i].transition, s, s + formations[i].hold]), project.audio?.duration ?? 0]
+  const edges = [...starts.flatMap((s, i) => [s - formations[i].transition, s, s + formations[i].hold]), soundLength(project.audio)]
   const snapped = (t: number, to = edges) => {
     if (grid) return gridAt + Math.round((t - gridAt) / grid) * grid
     if (snap !== 'edge') return t
@@ -150,7 +161,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
     if (!t) return
     const base = edgeTime(t.i, t.edge) - t.value // where this edge would sit at zero length
     const wanted = base + t.from + (e.clientX - t.x0) / pps
-    setTrim({ ...t, value: limit(t.i, t.edge, (e.altKey ? wanted : snapped(wanted, [time, project.audio?.duration ?? 0])) - base) })
+    setTrim({ ...t, value: limit(t.i, t.edge, (e.altKey ? wanted : snapped(wanted, [time, soundLength(project.audio)])) - base) })
   }
   const trimUp = () => {
     const t = live.current
@@ -158,6 +169,41 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
     setTrim(null)
     commit(t.i, t.edge, t.value)
   }
+  /** Saves where the song or video starts or stops; an end back at the file's own end is simply forgotten. */
+  const setKept = (edge: 'from' | 'to', v: number) => edit(p => {
+    const a = p.audio
+    if (!a) return
+    const r = round(v)
+    if (edge === 'from') { if (r <= 0) delete a.from; else a.from = r } else if (r >= a.duration) delete a.to; else a.to = r
+  })
+  // At least a second is always kept.
+  const limitCut = (edge: 'from' | 'to', v: number) => (edge === 'from' ? Math.max(0, Math.min(kept.to - 1, v)) : Math.max(kept.from + 1, Math.min(project.audio?.duration ?? 0, v)))
+  const cutHandle = (edge: 'from' | 'to') => (
+    <span className="sound-trim" role="slider" tabIndex={0}
+      style={{ left: ((edge === 'from' ? keepFrom : keepTo) - kept.from) * pps - 4 }}
+      aria-label={edge === 'from' ? 'Where the song or video starts' : 'Where the song or video stops'}
+      aria-valuemin={edge === 'from' ? 0 : kept.from + 1} aria-valuemax={edge === 'from' ? kept.to - 1 : project.audio?.duration} aria-valuenow={edge === 'from' ? keepFrom : keepTo} aria-valuetext={clock(edge === 'from' ? keepFrom : keepTo)}
+      title={edge === 'from' ? 'Drag right to cut the start off. Arrow keys work too.' : 'Drag left to cut the end off. Arrow keys work too.'}
+      onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setCut({ edge, x0: e.clientX, v0: kept[edge], v: kept[edge] }) }}
+      onPointerMove={e => { const c = cutLive.current; if (c) setCut({ ...c, v: limitCut(c.edge, c.v0 + (e.clientX - c.x0) / pps) }) }}
+      onPointerUp={() => { const c = cutLive.current; setCut(null); if (c && c.v !== c.v0) setKept(c.edge, c.v) }}
+      onPointerCancel={() => setCut(null)}
+      onKeyDown={e => {
+        const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+        if (!dir) return
+        e.preventDefault()
+        e.stopPropagation()
+        // From the saved value, not this render's, so quick repeated presses each count.
+        const step = dir * (e.shiftKey ? 1 : 0.1)
+        edit(p => {
+          const a = p.audio
+          if (!a) return
+          const k = keptOf(a)
+          const v = round(edge === 'from' ? Math.max(0, Math.min(k.to - 1, k.from + step)) : Math.max(k.from + 1, Math.min(a.duration, k.to + step)))
+          if (edge === 'from') { if (v <= 0) delete a.from; else a.from = v } else if (v >= a.duration) delete a.to; else a.to = v
+        })
+      }} />
+  )
   const trimKey = (e: KeyboardEvent, i: number, edge: Edge) => {
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!dir) return
@@ -267,6 +313,8 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
               <>
                 <canvas ref={canvas} style={{ width: view.width, left: view.left }} aria-label={`Waveform of ${project.audio.wave?.name ?? project.audio.name}`} role="img" />
                 {/* The track's own label stays in view as the timeline scrolls, and opens its settings. */}
+                {cutHandle('from')}
+                {cutHandle('to')}
                 <div className="sound-bar" style={{ left: view.left, width: view.width }}>
                   <button className="sound-tag" aria-haspopup="menu" disabled={reading} title={`${project.audio.name}: volume, replace or remove. Right-clicking the waveform opens this too.`}
                     onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setSoundMenu({ x: r.left, y: r.top - 6 }) }}>
@@ -314,6 +362,9 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
               <input type="range" min={0} max={1} step={0.05} value={volume} onChange={e => onVolume(Number(e.target.value))} aria-valuetext={`${Math.round(volume * 100)} percent`} />
               <output>{Math.round(volume * 100)}%</output>
             </label>
+            {time > 0.05 && time < soundLength(project.audio) - 1 && item('Trim the start to the playhead', () => { setKept('from', kept.from + time); onSeek(0) })}
+            {time >= 1 && time < soundLength(project.audio) && item('Trim the end to the playhead', () => setKept('to', kept.from + time))}
+            {(project.audio.from !== undefined || project.audio.to !== undefined) && item('Restore the full length', () => edit(p => { delete p.audio!.from; delete p.audio!.to }))}
             {item('Replace with another song or video…', onPickAudio)}
             {hasVideo && (project.audio.wave
               ? item("Draw the waveform from the video's own sound", () => edit(p => { delete p.audio!.wave }))

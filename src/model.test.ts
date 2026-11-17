@@ -5,7 +5,7 @@ import tinyMp4 from './fixtures/tiny.mp4?inline'
 
 vi.mock('./db', () => ({ saveProject: () => Promise.resolve() }))
 
-import { clashes, formationLabel, labelFor, presetShape, newProject, parseProject, parseProjects, positionsAt, span, startTimes, tidy, totalTime } from './model'
+import { clashes, formationLabel, keptOf, labelFor, presetShape, soundLength, newProject, parseProject, parseProjects, positionsAt, span, startTimes, tidy, totalTime } from './model'
 import { parseGuide } from './Help'
 import guide from '../docs/GUIDE.md?raw'
 import { addDancer, addFormation, matchPrevious, moveDancers, removeDancers, resizeStage, useEditor } from './store'
@@ -60,6 +60,16 @@ describe('model', () => {
     const cur = { a: { x: 2, y: 2 }, b: { x: -2, y: 2 }, c: { x: 0, y: 6 }, d: { x: 0.4, y: 6 } }
     expect(clashes(prev, cur, ['a', 'b', 'c', 'd'])).toEqual([['a', 'b']])
     expect(clashes(prev, { ...cur, b: { x: -2, y: 2, via: { x: 0, y: 6 } } }, ['a', 'b'])).toEqual([])
+  })
+
+  it('keeps a trimmed song or video inside its file', () => {
+    const a = { name: 'practice.mp4', duration: 142 }
+    expect(keptOf(a)).toEqual({ from: 0, to: 142 })
+    expect(soundLength({ ...a, from: 5, to: 120 })).toBe(115)
+    // Ends stored past the file (a shorter file swapped in, say) are pulled back inside it.
+    expect(keptOf({ ...a, from: 150, to: 200 })).toEqual({ from: 142, to: 142 })
+    expect(keptOf({ ...a, from: 10, to: 4 })).toEqual({ from: 10, to: 10 })
+    expect(soundLength(undefined)).toBe(0)
   })
 
   it('names formations by their own name, numbering them by position', () => {

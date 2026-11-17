@@ -495,3 +495,8 @@ input[type='number'] { appearance: textfield; }
   .preview-bottom { grid-template-columns: minmax(0, 1fr); }
   .preview-next { display: none; }
 }
+
+/* The ends of the song or video on its track, dragged to trim it. */
+.sound-trim { position: absolute; top: 3px; bottom: 3px; z-index: 2; width: 8px; border-radius: 3px; background: var(--ink); opacity: 0.45; cursor: ew-resize; touch-action: none; }
+.sound-trim:hover, .sound-trim:focus-visible, .sound-trim:active { opacity: 1; outline: none; }
+.sound-bar { padding-left: 16px; }

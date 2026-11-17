@@ -5,16 +5,16 @@ import { formationLabel, gelOf, inkOn, positionsAt, propPoints, shapePoints, tot
 const FPS = 30
 const R = 0.34 // dancer mark radius, metres: the same as on the stage
 
-export interface ExportSound { ctx: AudioContext; src: string; video: boolean }
+export interface ExportSound { ctx: AudioContext; src: string; video: boolean; /** The kept stretch of the file, in its own seconds. */ from: number; to: number }
 
 /**
  * Sets up the sound for a recording. Call it inside the click that asks for the export: Safari lets the sound run
  * only when a click started it. `src` is the address of the song or video already loaded in the editor.
  */
-export function soundForExport(src: string, video: boolean): ExportSound {
+export function soundForExport(src: string, video: boolean, kept = { from: 0, to: Infinity }): ExportSound {
   const ctx = new AudioContext()
   ctx.resume().catch(() => {})
-  return { ctx, src, video }
+  return { ctx, src, video, ...kept }
 }
 
 /** The whole sound as one buffer. A video's sound is read frame by frame first, because Safari decodes only part of it otherwise. */
@@ -138,7 +138,8 @@ export async function recordVideo(project: Project, sound: ExportSound | undefin
       const buffer = await decodeSound(sound, await file.arrayBuffer())
       let startedAt = 0
       if (buffer) {
-        playSound = () => { const n = sound.ctx.createBufferSource(); n.buffer = buffer; n.connect(into); n.start(); startedAt = sound.ctx.currentTime }
+        // Only the kept stretch plays.
+        playSound = () => { const n = sound.ctx.createBufferSource(); n.buffer = buffer; n.connect(into); n.start(0, sound.from, Math.max(0, Math.min(sound.to, buffer.duration) - sound.from)); startedAt = sound.ctx.currentTime }
         soundTime = () => sound.ctx.currentTime - startedAt
       }
     } else {
@@ -146,8 +147,11 @@ export async function recordVideo(project: Project, sound: ExportSound | undefin
       const player = Object.assign(document.createElement(sound.video ? 'video' : 'audio'), { src: sound.src })
       sound.ctx.createMediaElementSource(player).connect(into)
       extra.push(player)
-      playSound = () => { player.play().catch(() => {}) }
-      soundTime = () => (player.paused || player.ended ? undefined : player.currentTime)
+      playSound = () => { player.currentTime = sound.from; player.play().catch(() => {}) }
+      soundTime = () => {
+        if (player.currentTime >= sound.to) player.pause()
+        return player.paused || player.ended ? undefined : player.currentTime - sound.from
+      }
     }
     // A sound track that never delivers sound (its context not allowed to run) stops Safari from finishing the file, so it is left out.
     if (playSound && sound.ctx.state === 'running') stream.addTrack(into.stream.getAudioTracks()[0])
@@ -186,7 +190,10 @@ export async function recordVideo(project: Project, sound: ExportSound | undefin
         // The sound is the clock while it plays, as in the editor, so picture and sound stay together.
         t = soundTime?.() ?? t + (now - last) / 1000
         last = now
-        if (audio && t < audio.duration && Math.abs(audio.currentTime - t) > 0.25) audio.currentTime = t
+        // The picture follows the kept stretch too, and stops where it ends.
+        const m = t + (sound?.from ?? 0)
+        if (audio && m >= Math.min(sound!.to, audio.duration || Infinity)) audio.pause()
+        else if (audio && Math.abs(audio.currentTime - m) > 0.25) audio.currentTime = m
         draw(Math.min(t, end))
         onProgress(Math.min(1, t / end))
         // Half a second on the last formation, so the video does not end on the very frame everyone arrives.

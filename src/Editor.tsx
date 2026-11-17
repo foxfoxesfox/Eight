@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { clock, MAX_AUDIO_BYTES, MAX_WAVEFORM_BYTES, mediaLength, readAudio } from './audio'
 import { loadAudio, loadProject, loadWave, saveAudio, saveProject, saveWave } from './db'
-import { centroid, clashes, DANCER_COLORS, formationLabel, PROP_SHAPE_NAMES, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
+import { centroid, clashes, DANCER_COLORS, formationLabel, keptOf, soundLength, PROP_SHAPE_NAMES, FT, GELS, gelName, gelOf, inkOn, isPerson, newLengths, parseProjects, positionsAt, presetShape, round, SHAPES, startTimes, tidy, totalTime, unitOf, type Dancer, type Position, type Preset, type Project, type Shape, type Stage } from './model'
 import { addDancer, addFormation, addProp, deleteFormation, edit, moveDancers, moveFormation, removeDancers, resizeStage, useEditor } from './store'
 import { describe, MarkIcon, StageView, type PathMode } from './Stage'
 import { recordVideo, soundForExport, type ExportSound } from './video'
@@ -55,7 +55,9 @@ function Workspace({ project }: { project: Project }) {
   const { current, selected, past, future, saveError, select, setCurrent, undo, redo } = useEditor()
   const { formations, dancers, stage, bpm } = project
   const starts = startTimes(formations)
-  const end = Math.max(totalTime(formations), project.audio?.duration ?? 0)
+  const end = Math.max(totalTime(formations), soundLength(project.audio))
+  /** Where the kept stretch of the song or video starts and stops in the file; the timeline's 0:00 is `from`. */
+  const kept = project.audio ? keptOf(project.audio) : { from: 0, to: 0 }
 
   // The playhead, in seconds. The formation being edited is whichever one it sits on.
   const [time, setTime] = useState(0)
@@ -135,10 +137,11 @@ function Workspace({ project }: { project: Project }) {
   const seek =(t: number) => {
     // Read the length from the store: right after an edit, this render's `end` is still the old one.
     const p = useEditor.getState().project ?? project
-    const c = Math.max(0, Math.min(Math.max(totalTime(p.formations), p.audio?.duration ?? 0), t))
+    const c = Math.max(0, Math.min(Math.max(totalTime(p.formations), soundLength(p.audio)), t))
     timeRef.current = c
     setTime(c)
-    if (song.current) song.current.currentTime = Math.min(c, song.current.duration || 0)
+    const k = p.audio ? keptOf(p.audio) : { from: 0, to: Infinity }
+    if (song.current) song.current.currentTime = Math.min(c + k.from, k.to, song.current.duration || 0)
   }
   /** Puts the playhead on the store's current formation; reads the store so it works right after an edit. */
   const follow = () => {
@@ -253,8 +256,8 @@ function Workspace({ project }: { project: Project }) {
     const a = song.current
     // Starts the song whenever the playhead is inside it and it is silent: on Play, and after a loop or a seek back from past its end.
     const sound = () => {
-      if (!a || !a.paused || !(timeRef.current < a.duration - 0.05)) return
-      a.currentTime = timeRef.current
+      if (!a || !a.paused || !(timeRef.current + kept.from < Math.min(kept.to, a.duration) - 0.05)) return
+      a.currentTime = timeRef.current + kept.from
       a.playbackRate = speedRef.current
       a.volume = volume
       a.play().catch(() => {})
@@ -264,12 +267,14 @@ function Workspace({ project }: { project: Project }) {
     let last = performance.now()
     const tick = (now: number) => {
       sound()
+      // The sound stops where the trimmed stretch ends, and the timeline runs on by the clock.
+      if (a && !a.paused && a.currentTime >= kept.to) a.pause()
       // The song is the clock while it is sounding, so picture and sound cannot drift apart.
-      let t = a && !a.paused && !a.ended ? a.currentTime : timeRef.current + ((now - last) / 1000) * speedRef.current
+      let t = a && !a.paused && !a.ended ? a.currentTime - kept.from : timeRef.current + ((now - last) / 1000) * speedRef.current
       last = now
       if (loop && t >= loopRange.current[1]) {
         t = loopRange.current[0]
-        if (a) a.currentTime = t
+        if (a) a.currentTime = t + kept.from
       }
       if (t >= end) { timeRef.current = end; setTime(end); setPlaying(false); return }
       timeRef.current = t
@@ -278,7 +283,7 @@ function Workspace({ project }: { project: Project }) {
     }
     raf = requestAnimationFrame(tick)
     return () => { cancelAnimationFrame(raf); a?.pause() }
-  }, [playing, end, loop])
+  }, [playing, end, loop, kept.from, kept.to])
 
   const toggle = () => {
     if (!playing && timeRef.current >= end - 0.01) seek(0)
@@ -303,6 +308,9 @@ function Workspace({ project }: { project: Project }) {
 
   useEffect(() => { if (view.index !== current) setCurrent(view.index) }, [view.index, current, setCurrent])
   useEffect(() => { if (timeRef.current > end) seek(end) })
+  // After a trim, the song or video is put back in line with the playhead.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { seek(timeRef.current) }, [kept.from, kept.to])
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -473,7 +481,7 @@ function Workspace({ project }: { project: Project }) {
           else if (kind === 'picture') savePng(document.querySelector<SVGSVGElement>('.floor .stage')!, `${fileName} - ${formationLabel(here, view.index).title}.png`).catch(() => setImportError('The picture could not be made in this browser.'))
           else if (kind === 'pdf') go(`#/r/${project.id}/print`)
           // The sound is set up here, inside the click, because Safari records sound only when a click started it.
-          else exportVideo(options, song.current && !audioMissing ? soundForExport(song.current.src, hasVideo) : undefined)
+          else exportVideo(options, song.current && !audioMissing ? soundForExport(song.current.src, hasVideo, kept) : undefined)
         }} />
       {notice && <p className="toast is-info" role="status">{notice} <button className="link" onClick={() => setNotice('')}>Dismiss</button></p>}
       {importError && <p className="toast" role="alert">{importError} <button className="link" onClick={() => setImportError('')}>Dismiss</button></p>}
@@ -609,7 +617,7 @@ function Workspace({ project }: { project: Project }) {
                 <p className="readout"><span>Waveform from</span><strong>{project.audio.wave.name}</strong></p>
                 <Field label="That song starts this far into the video" type="number" min={-600} max={600} step={0.01} suffix="s" value={project.audio.wave.offset} onCommit={v => edit(p => { p.audio!.wave!.offset = round(Number(v)) })} />
                 <div className="row">
-                  <button className="btn btn-line" onClick={() => edit(p => { p.audio!.wave!.offset = round(time) })} title="Put the playhead where the song starts in the video, then press this">Starts at playhead</button>
+                  <button className="btn btn-line" onClick={() => edit(p => { p.audio!.wave!.offset = round(time + kept.from) })} title="Put the playhead where the song starts in the video, then press this">Starts at playhead</button>
                   <button className="btn btn-line" onClick={() => edit(p => { delete p.audio!.wave })}>Use the video's sound</button>
                 </div>
               </>

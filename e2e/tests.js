@@ -437,6 +437,26 @@ async function run() {
     await until(() => /dropped\.wav/.test($('.sound-tag')?.textContent ?? ''), 8000)
     return ok(hint && /dropped\.wav/.test($('.sound-tag').textContent) && !$('.drop-hint') && !$('.screen video'), { hint, tag: $('.sound-tag')?.textContent })
   })
+  await test('trim the start and end of the song, and playback uses only the kept stretch', async () => {
+    const out = {}, handle = i => $$('.sound-trim')[i], value = i => +handle(i).getAttribute('aria-valuenow')
+    // Which media element is the editor's song, caught when it is played.
+    let el = null; const play = W.HTMLMediaElement.prototype.play
+    W.HTMLMediaElement.prototype.play = function () { if (!this.closest?.('.preview')) el = this; return play.call(this) }
+    for (let i = 0; i < 5; i++) handle(0).dispatchEvent(new W.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await sleep(150); out.start = value(0)
+    const pps = clips()[0].getBoundingClientRect().width / (+field('In formation')?.value || 4)
+    const h = handle(1), [x, y] = mid(h)
+    ptr(h, 'pointerdown', x, y); ptr(h, 'pointermove', x - pps * 0.3, y); ptr(h, 'pointerup', x - pps * 0.3, y); await sleep(150); out.end = value(1)
+    clips()[0].querySelector('.clip-body').click(); await sleep(100)
+    btn('Play from the playhead').click(); await sleep(700); out.clock = secsNow(); out.media = el?.currentTime; btn('Stop').click(); await sleep(100)
+    out.inStep = el && Math.abs(el.currentTime - out.start - secsNow()) < 0.35
+    const ruler = $('.ruler'), r = ruler.getBoundingClientRect(); setVal(check('Snap to'), 'off')
+    ptr(ruler, 'pointerdown', r.left + pps * 1.2, r.top + 5); ptr(ruler, 'pointerup', r.left + pps * 1.2, r.top + 5); await sleep(120)
+    let m = await soundMenu(); btn('Trim the end to the playhead', m).click(); await sleep(150); out.endAtPlayhead = value(1)
+    m = await soundMenu(); btn('Restore the full length', m).click(); await sleep(150); out.restored = [value(0), value(1)]
+    W.HTMLMediaElement.prototype.play = play
+    return ok(out.start === 0.5 && Math.abs(out.end - 1.7) < 0.05 && out.inStep && Math.abs(out.endAtPlayhead - 1.7) < 0.05 && out.restored[0] === 0 && out.restored[1] === 2, out)
+  })
   await test('a file that is not music or video is refused with a message', async () => {
     await pick(audioInput(), new W.File(['hello'], 'notes.txt', { type: 'text/plain' })); const t = await until(() => $('.toast[role=alert]'))
     const text = t?.textContent; btn('Dismiss', t)?.click()

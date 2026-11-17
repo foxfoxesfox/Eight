@@ -34,6 +34,7 @@ How to use it, and answers to common questions: [docs/GUIDE.md](docs/GUIDE.md), 
 **Music and video**
 - Add a song (MP3, WAV, M4A, up to 60 MB) with the button or by dropping the file on the page, and see its waveform. Its own row on the timeline holds its volume, replace and remove.
 - Or add a video (MP4, MOV, WebM): it plays beside the stage in step with the formations, and can be mirrored.
+- Trim the start and end of the song or video by dragging the ends of its waveform; the file itself is never changed.
 - A video over 300 MB has no waveform of its own; add its song file and the waveform is drawn from that, with an offset to line it up.
 
 **Export**
@@ -85,7 +86,7 @@ npm test
 npm run e2e
 ```
 
-`npm test` runs the unit tests. `npm run e2e` builds the site and runs 58 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
+`npm test` runs the unit tests. `npm run e2e` builds the site and runs 59 end-to-end checks in headless Chrome: it creates a routine, edits dancers and formations, uses the timeline, adds music and video, and tries every export and import, the way a person would. Add `-- --safari` on a Mac to run them in Safari too; it opens a Safari tab you can close afterwards. To run them from a browser yourself, start `npm run e2e:open` and open the address it prints: the app runs on the left and each check appears on the right as it passes or fails. Reload the page to run them again. Set `CHROME_PATH` if Chrome is installed somewhere unusual.
 
 
 ```bash

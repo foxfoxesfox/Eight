@@ -69,6 +69,9 @@ export interface Project {
     duration: number
     /** A song file whose waveform is drawn in place of the video's own sound, and how many seconds into the video that song starts. */
     wave?: { name: string; offset: number }
+    /** The stretch of the file in use, in the file's own seconds: the timeline's 0:00 is `from`, and the sound stops at `to`. The file itself is never changed. */
+    from?: number
+    to?: number
   }
   archived?: boolean
   createdAt: number
@@ -166,6 +169,19 @@ export function lineUp(ids: string[], stage: Stage, perRow = 10): Record<string,
 }
 
 export const round = (n: number) => Math.round(n * 100) / 100
+
+type Sound = NonNullable<Project['audio']>
+/** The stretch of the song or video in use, kept inside the file even if the stored ends are off. */
+export function keptOf(a: Sound): { from: number; to: number } {
+  const from = Math.max(0, Math.min(a.from ?? 0, a.duration))
+  return { from, to: Math.max(from, Math.min(a.to ?? a.duration, a.duration)) }
+}
+/** How long the song or video lasts on the timeline, after trimming. */
+export function soundLength(a: Sound | undefined): number {
+  if (!a) return 0
+  const { from, to } = keptOf(a)
+  return to - from
+}
 
 type Timing = Pick<Project, 'bpm' | 'timeUnit'>
 
