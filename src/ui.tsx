@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 const paths: Record<string, ReactNode> = {
   play: <path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none" />,
@@ -56,7 +56,7 @@ export function Field({ label, value, onCommit, type = 'text', min, max, step, m
   return (
     <label className="field">
       <span>{label}</span>
-      <span className="field-box">
+      <span className="field-box" style={suffix ? { '--suffix': suffix.length } as CSSProperties : undefined}>
         <input
           type={type}
           value={draft}

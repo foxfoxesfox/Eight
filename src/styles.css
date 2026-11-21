@@ -100,18 +100,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .field > span:first-child, .chips legend, .arrange legend, .readout span { font-size: 12.5px; font-weight: 600; color: var(--mute); }
 .field-box { position: relative; display: block; }
 .field-box em { position: absolute; right: 10px; top: 50%; translate: 0 -50%; font-style: normal; font-size: 12.5px; color: var(--mute); pointer-events: none; }
-.field-box:has(em) input { padding-right: 58px; }
+/* Room for the unit's own length (--suffix is its character count), so "s" doesn't reserve the space of "counts". */
+.field-box:has(em) input { padding-right: calc(var(--suffix, 6) * 0.85ch + 18px); }
 input, select, textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--white);
 }
 input::placeholder, textarea::placeholder { color: var(--mute); }
 textarea { resize: vertical; min-height: 72px; }
 input[type='number'] { appearance: textfield; }
+/* Chrome and Safari ignore appearance on the spinner; it squeezed the value in narrow fields. Arrow keys still step. */
+input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { appearance: none; margin: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips legend { margin-bottom: 6px; }
 .chips button { width: 24px; height: 24px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px #00000026; }
 .chips button.is-on { outline: 2px solid var(--ink); outline-offset: 2px; }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 10px; }
+/* A side panel dragged narrower than its default stacks paired fields, so labels and values stay readable. */
+.rail { container-type: inline-size; }
+@container (width < 236px) { .pair { grid-template-columns: minmax(0, 1fr); } }
 .row { display: flex; gap: 8px; }
 .row .btn { flex: 1; }
 .readout { display: grid; gap: 2px; }
