@@ -83,7 +83,7 @@ components:
     height: "84px"
   rail:
     backgroundColor: "{colors.paper}"
-    padding: "18px 16px"
+    padding: "16px"
     width: "248px"
 ---
 

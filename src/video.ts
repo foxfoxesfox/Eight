@@ -104,7 +104,7 @@ export async function recordVideo(project: Project, sound: ExportSound | undefin
     g.fillText(clock(t).slice(0, -3), W - 28 * S, 42 * S)
     g.textAlign = 'center'
     g.font = `800 ${15 * S}px Figtree Variable, system-ui, sans-serif`
-    g.fillText('AUDIENCE', SW / 2, Y(0) + 0.7 * k)
+    g.fillText('Audience', SW / 2, Y(0) + 0.7 * k)
 
     const v = audio as HTMLVideoElement | null
     if (split && v?.videoWidth) {

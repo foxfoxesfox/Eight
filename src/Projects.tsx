@@ -71,11 +71,11 @@ export function Projects() {
         </form>
 
         {all === null ? !error && <p className="quiet" aria-busy="true">Loading your routines…</p> : all.length === 0 ? (
-          <p className="quiet">No routines yet. Name one above and you'll be placing dancers in a few seconds. Everything is stored in this browser on this device.</p>
+          <p className="quiet">No routines yet. Name one above to start. Routines are stored in this browser on this device.</p>
         ) : (
           <>
             <div className="filters">
-              <label className="field grow"><span>Search</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a routine by name" /></label>
+              <label className="field grow"><span>Search</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} /></label>
               <label className="field"><span>Sort by</span>
                 <select value={sort} onChange={e => setSort(e.target.value as 'recent' | 'name')}><option value="recent">Last edited</option><option value="name">Name</option></select>
               </label>
@@ -87,7 +87,7 @@ export function Projects() {
                   <li key={p.id} style={{ '--gel': gelOf(p.formations[0], 0), '--wash': gelOf(p.formations[0], 0) } as React.CSSProperties}>
                     <a href={`#/r/${p.id}`} className="routine-open">
                       <span className="thumb"><StageView stage={p.stage} dancers={p.dancers} positions={p.formations[0].positions} label={`First formation of ${p.name}`} /></span>
-                      <span className="routine-text"><b>{p.name}</b><i>{p.dancers.length} dancers · {p.formations.length} formations · edited {when.format(p.updatedAt)}</i></span>
+                      <span className="routine-text"><b>{p.name}</b><i>{p.dancers.length} {p.dancers.length === 1 ? 'dancer' : 'dancers'} · {p.formations.length} {p.formations.length === 1 ? 'formation' : 'formations'} · edited {when.format(p.updatedAt)}</i></span>
                     </a>
                     <span className="routine-actions">
                       <button className="btn btn-line" onClick={() => run(saveProject({ ...p, id: uid(), name: `${p.name} copy`, audio: undefined, archived: false, createdAt: Date.now(), updatedAt: Date.now() }))}>Duplicate</button>

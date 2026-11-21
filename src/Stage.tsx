@@ -160,7 +160,7 @@ export function StageView({ stage, dancers, positions, selected = [], onSelect, 
       {stage.marks === 'numbers' && lines(w / 2, every).flatMap(x => (x ? [x, -x] : [0])).map(x => (
         <text key={x} className="stage-number" x={x} y={Y(0) + front * 0.34 + 0.08} textAnchor="middle">{Math.round(Math.abs(x) / u)}</text>
       ))}
-      <text className="stage-front" x={0} y={Y(0) + front * 0.85 + (flip ? 0.2 : 0)} textAnchor="middle">AUDIENCE</text>
+      <text className="stage-front" x={0} y={Y(0) + front * 0.85 + (flip ? 0.2 : 0)} textAnchor="middle">Audience</text>
 
       {next && paths === 'always' && dancers.map(dn => next[dn.id] && !dn.prop && <circle key={dn.id} className="ghost-next" cx={X(next[dn.id].x)} cy={Y(next[dn.id].y)} r={R * 0.8} />)}
       {ghosts && paths !== 'never' && dancers.map(dn => {

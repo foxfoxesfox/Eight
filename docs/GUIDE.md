@@ -5,11 +5,11 @@ A short guide to making a routine, followed by answers to common questions.
 ## Make your first routine
 
 1. **Start.** On "Your routines", type a name, say how many dancers and how big the stage is, and press Create. Everyone starts in a line.
-2. **Place the dancers.** Drag them where you want them. Drag a box around several, or Shift-click, to move a group. Under "Arrange everyone" on the right you can drop the group into a line, circle, V and other shapes, then turn, mirror, spread or tighten it.
+2. **Place the dancers.** Drag them where you want them. Drag a box around several, or <kbd>Shift</kbd>-click, to move a group. Under "Arrange everyone" on the right you can drop the group into a line, circle, V and other shapes, then turn, mirror, spread or tighten it.
 3. **Add the next formation.** Press "Add formation" at the end of the timeline. It starts as a copy of the last one, so you only move the people who change places. To put a copy somewhere in the middle, right-click a formation and choose Duplicate. Faint ghosts show where each person came from.
 4. **Set the timing.** Each formation is a coloured bar on the timeline. Drag its right edge to change how long it holds, and the small knob inside it to change how long everyone takes to walk in. You can also type the numbers on the right.
 5. **Add music or a video.** Press "Add music or video" in the empty row under the formations, or drag the file from your computer onto the page. Its waveform fills that row. Click the file's name at the start of the row, or right-click the waveform, to change the volume, replace the file or remove it. To cut dead time off the front or the end of a practice video, drag the small bar at either end of its waveform, or put the playhead where you want it to start or stop and use "Trim the start to the playhead" or "Trim the end to the playhead" in the same menu. The file itself is never changed: "Restore the full length" brings everything back, and Undo works as usual. Trim the start before you place formations: the formations keep their times, so cutting the front later moves the music earlier under them. A video plays beside the stage, in step with the formations.
-6. **Play it.** Press Play or the Space bar. Use the Speed slider to slow it down and "Loop formation" to repeat one transition. For a run-through before you export, press **Preview**: the routine fills the screen with the formation name, count and notes, and what comes next. The arrow keys move between formations, Space plays and pauses, and Escape leaves.
+6. **Play it.** Press Play or <kbd>Space</kbd>. Use the Speed slider to slow it down and "Loop formation" to repeat one transition. For a run-through before you export, press **Preview**: the routine fills the screen with the formation name, count and notes, and what comes next. The arrow keys move between formations, <kbd>Space</kbd> plays and pauses, and <kbd>Esc</kbd> leaves.
 7. **Fix collisions.** If two dancers would walk into each other, the panel on the right names them and rings them in red. Select one, then drag the small white handle on their path to bend it around the other.
 8. **Share it.** Press Export and choose a routine file, a picture, PDF sheets or a video.
 
@@ -18,12 +18,12 @@ A short guide to making a routine, followed by answers to common questions.
 - **Dancers:** click one to rename them or change their label, colour (eight standard ones, or any from the picker) and shape. "Add prop" makes a prop you can resize and shape as a rectangle, oval, triangle, diamond or hexagon, for a chair, riser, table or platform.
 - **Your workspace:** drag the edge of the dancers panel, the details panel or the timeline to make it bigger or smaller, or use the arrow buttons at the top of the stage to hide the side panels. With a video, drag the divider between the stage and the video to give either more room. Eight remembers the layout in this browser.
 - **Counts or seconds:** under Routine on the right, "Time formations in" switches the whole routine between seconds and counts. Set the tempo and the counts in a bar there too.
-- **Snapping:** "Snap to" above the timeline makes edges jump to counts, half counts, bars, whole seconds, or other formations. On the stage, "Dancers snap to" sets the step dancers jump by. Hold Alt while dragging to ignore snapping.
+- **Snapping:** "Snap to" above the timeline makes edges jump to counts, half counts, bars, whole seconds, or other formations. On the stage, "Dancers snap to" sets the step dancers jump by. Hold <kbd>Alt</kbd> while dragging to ignore snapping.
 - **Narrow bars** on the timeline show just their number. Point at a bar to see its name and lengths, or zoom in with the + button.
 - **Right-click a dancer or prop**, on the stage or in the list, to change its colour, put it offstage, send it back to where it stood in the formation before, straighten its path or remove it. With several selected, the menu acts on all of them.
 - **Right-click a formation** to duplicate it, reset it to the one before, line everyone up, move it or delete it.
 - **Dancers' view** flips the stage so you see it from the back, the way the dancers face. "Mirror video" does the same kind of flip for a video.
-- **Undo** is Ctrl or Cmd + Z. It goes back as far as when you opened the routine.
+- **Undo** is <kbd>Ctrl</kbd> <kbd>Z</kbd>, or <kbd>Cmd</kbd> <kbd>Z</kbd> on a Mac. It goes back as far as when you opened the routine.
 
 ## Questions
 

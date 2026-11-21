@@ -55,15 +55,15 @@ export function Landing() {
         <section className="hero">
           <div className="hero-copy">
             <h1>Every dancer. Every count.</h1>
-            <p>Eight is a free formation planner for dancers, choreographers and crews. Place everyone on the stage, step through each formation, and watch the transitions play count by count, right in your browser.</p>
+            <p>Eight is a free formation planner for dancers, choreographers and crews. Place everyone on the stage and watch each change play out, count by count.</p>
             <a className="btn btn-solid btn-big" href="#/routines">Start planning</a>
-            <p className="fine">No account. Nothing to install. Nothing to pay.</p>
+            <p className="fine">Free, with no account or install</p>
           </div>
           <Demo />
         </section>
         <section className="about">
           <h2>Why "Eight"</h2>
-          <p>Eight takes its name from the dance eight-count: a simple structure for bringing movement together. We bring that same clarity to planning formations, helping you see every position, shape every transition, and keep everyone on the same count.</p>
+          <p>Eight takes its name from the dance eight-count. Formations are planned the same way: in counts, so everyone hits the same beat.</p>
           <dl>
             <div><dt>Yours to keep</dt><dd>Routines are saved in your browser on your device. Export any of them as a file to back up or send to your crew.</dd></div>
             <div><dt>Built in counts</dt><dd>Time each formation in counts on the beat, or in seconds against the song. Set the tempo and press play.</dd></div>
@@ -71,7 +71,7 @@ export function Landing() {
           </dl>
         </section>
       </main>
-      <footer className="foot">Eight is free and has no ads or tracking.</footer>
+      <footer className="foot">Eight has no ads or tracking.</footer>
     </div>
   )
 }

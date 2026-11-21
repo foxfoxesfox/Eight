@@ -577,7 +577,7 @@ function Workspace({ project }: { project: Project }) {
           </>
         ) : (
           <>
-            <h2>Formation {pad(current + 1)}</h2>
+            <h2>Formation {current + 1}</h2>
             {hits.length > 0 && (
               <p className="warn" role="status">
                 {hits.slice(0, 3).map(([a, b]) => `${nameOf(a)} and ${nameOf(b)}`).join('; ')}{hits.length > 3 ? `, and ${hits.length - 3} more,` : ''} cross paths moving into this formation. Bend a path or move someone to clear it.
@@ -601,7 +601,7 @@ function Workspace({ project }: { project: Project }) {
             <h2 className="spaced">Routine</h2>
             <label className="field"><span>Time formations in</span>
               <select value={counts ? 'counts' : 'seconds'} onChange={e => edit(p => { p.timeUnit = e.target.value as 'seconds' | 'counts' })}>
-                <option value="seconds">Seconds, free against the song</option><option value="counts">Counts, on the beat</option>
+                <option value="seconds">Seconds, timed to the song</option><option value="counts">Counts, on the beat</option>
               </select>
             </label>
             <Field label="Tempo of the beat grid" type="number" min={30} max={240} step={1} suffix="BPM" value={bpm} onCommit={v => edit(p => {

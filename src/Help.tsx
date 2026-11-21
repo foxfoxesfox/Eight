@@ -4,7 +4,7 @@ import { ThemeToggle } from './ui'
 
 type Block = { kind: 'h1' | 'h2' | 'h3' | 'p'; text: string } | { kind: 'ol' | 'ul'; items: string[] }
 
-// shortcut: reads only the Markdown the guide uses (headings, paragraphs, two kinds of list, bold, code); use a Markdown library if the guide needs links, tables or images.
+// shortcut: reads only the Markdown the guide uses (headings, paragraphs, two kinds of list, bold, code, <kbd>); use a Markdown library if the guide needs links, tables or images.
 export function parseGuide(md: string): Block[] {
   const out: Block[] = []
   for (const chunk of md.split(/\n{2,}/)) {
@@ -18,10 +18,10 @@ export function parseGuide(md: string): Block[] {
   return out
 }
 
-/** Bold and code inside a line. */
+/** Bold, code and keycaps (<kbd>) inside a line. */
 const inline = (text: string): ReactNode[] =>
-  text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((part, i) =>
-    part.startsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part.startsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : part)
+  text.split(/(\*\*[^*]+\*\*|`[^`]+`|<kbd>[^<]+<\/kbd>)/).map((part, i) =>
+    part.startsWith('<kbd>') ? <kbd key={i}>{part.slice(5, -6)}</kbd> : part.startsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part.startsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : part)
 
 const show = (b: Block, key: number) =>
   b.kind === 'ol' ? <ol key={key}>{b.items.map((t, i) => <li key={i}>{inline(t)}</li>)}</ol>

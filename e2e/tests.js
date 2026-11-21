@@ -140,7 +140,7 @@ async function run() {
   await test('Ctrl+A selects everyone and Escape clears the selection', async () => {
     key('a', { ctrlKey: true }); await sleep(100); const all = details()
     key('Escape'); await sleep(100)
-    return ok(all === '6 selected' && details() === 'Formation 01', { all, after: details() })
+    return ok(all === '6 selected' && details() === 'Formation 1', { all, after: details() })
   })
   await test('preset shapes and group tools move everyone', async () => {
     const out = {}
@@ -190,7 +190,7 @@ async function run() {
   })
   await test('"Add formation" at the end of the timeline adds after the last one', async () => {
     key('Escape'); $('.clip-add').click(); await until(() => clips().length === 2)
-    return ok(clips().length === 2 && clips()[1].classList.contains('is-current') && details() === 'Formation 02')
+    return ok(clips().length === 2 && clips()[1].classList.contains('is-current') && details() === 'Formation 2')
   })
   await test('moving a selected dancer shows its path from the formation before', async () => {
     $$('.dancer-list button')[0].click(); await sleep(80); key('ArrowUp'); key('ArrowUp'); await sleep(150)

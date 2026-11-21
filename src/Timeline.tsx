@@ -327,7 +327,7 @@ export function Timeline({ project, time, playing, index, peaks, audioMissing, t
               <p style={{ left: view.left, width: view.width }}>The music for this routine isn't on this device. <button className="link" onClick={onPickAudio}>Add the song or video again</button></p>
             ) : (
               <button className="sound-add" style={{ left: view.left + 4, width: view.width - 8 }} onClick={onPickAudio} disabled={reading}>
-                <Icon name="plus" />Add music or video<span>or drop a file here · songs up to 60 MB, videos any size your device has room for</span>
+                <Icon name="plus" />Add music or video<span>or drop a file here · songs up to 60 MB</span>
               </button>
             )}
           </div>
